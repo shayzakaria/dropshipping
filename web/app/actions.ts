@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { clearSession, getCurrentUser, setSession } from "@/lib/auth";
 import { DomainError, validateCampaignSplit } from "@/lib/domain/logic";
-import { redeemCode } from "@/lib/domain/service";
+import { cancelRedemption, redeemCode } from "@/lib/domain/service";
 import { getReadyStore } from "@/lib/store";
 import type { Role } from "@/lib/domain/types";
 
@@ -130,6 +130,22 @@ export async function toggleCampaign(campaignId: string): Promise<void> {
   const campaign = await store.getCampaign(campaignId);
   if (!business || !campaign || campaign.businessId !== business.id) return;
   await store.setCampaignStatus(campaignId, campaign.status === "active" ? "paused" : "active");
+  revalidatePath("/dashboard");
+}
+
+/** The business voids a commission after a return. Ownership is enforced. */
+export async function cancelSale(redemptionId: string): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "business") redirect("/login");
+  const store = await getReadyStore();
+  const business = await store.getBusinessByOwner(user.id);
+  if (!business) return;
+  try {
+    await cancelRedemption(store, { businessId: business.id, redemptionId });
+  } catch (e) {
+    // A sale that is missing, already paid, or not this business's stays as it is
+    if (!(e instanceof DomainError)) throw e;
+  }
   revalidatePath("/dashboard");
 }
 

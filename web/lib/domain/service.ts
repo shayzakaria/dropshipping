@@ -113,3 +113,45 @@ export async function redeemCode(store: DataStore, input: RedeemInput): Promise<
     source: input.source,
   });
 }
+
+export interface CancelInput {
+  /** The business the sale belongs to. Ownership is enforced, not assumed. */
+  businessId: string;
+  /** Identify the sale by our id or by the store's own order id */
+  redemptionId?: string;
+  externalOrderId?: string;
+}
+
+/**
+ * Void the commission on a returned or fraudulent sale.
+ *
+ * Idempotent: cancelling an already-cancelled sale succeeds and changes
+ * nothing, because a refund webhook retries like any other. A commission that
+ * was already paid out cannot be cancelled here — that money has left, and
+ * clawing it back is a decision a person makes, not a webhook.
+ */
+export async function cancelRedemption(
+  store: DataStore,
+  input: CancelInput,
+): Promise<Redemption> {
+  const found = input.redemptionId
+    ? await store.getRedemption(input.redemptionId)
+    : input.externalOrderId
+      ? await store.getRedemptionByExternalOrderId(input.businessId, input.externalOrderId)
+      : null;
+
+  if (!found) {
+    throw new DomainError("REDEMPTION_NOT_FOUND", "המכירה לא נמצאה");
+  }
+  // A sale is only ever cancellable by the business that made it
+  if (found.businessId !== input.businessId) {
+    throw new DomainError("REDEMPTION_NOT_FOUND", "המכירה לא נמצאה");
+  }
+  if (found.status === "cancelled") return found;
+  if (found.status === "paid") {
+    throw new DomainError("ALREADY_PAID", "העמלה כבר שולמה ולא ניתן לבטל אותה אוטומטית");
+  }
+
+  await store.setRedemptionStatus(found.id, "cancelled");
+  return { ...found, status: "cancelled" };
+}

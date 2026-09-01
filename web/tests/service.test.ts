@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DomainError } from "@/lib/domain/logic";
-import { redeemCode } from "@/lib/domain/service";
-import { businessStats, influencerStats } from "@/lib/domain/stats";
+import { cancelRedemption, redeemCode } from "@/lib/domain/service";
+import { businessStats, influencerStats, walletStats } from "@/lib/domain/stats";
 import { MemoryStore } from "@/lib/store/memory";
 
 async function world(overrides: Partial<Parameters<MemoryStore["createCampaign"]>[0]> = {}) {
@@ -314,5 +314,78 @@ describe("redeemCode — commission hold", () => {
     await store.setRedemptionStatus(r.id, "cancelled");
     const after = await store.listRedemptionsByInfluencer(influencer.id);
     expect(after[0].status).toBe("cancelled");
+  });
+});
+
+describe("cancelRedemption", () => {
+  it("voids the commission on a returned order", async () => {
+    const { store, business, influencer, code } = await world({ newCustomersOnly: false });
+    const sale = await redeemCode(store, { code: code.code, orderAmount: 300, source: "simulator" });
+
+    const cancelled = await cancelRedemption(store, {
+      businessId: business.id,
+      redemptionId: sale.id,
+    });
+
+    expect(cancelled.status).toBe("cancelled");
+    const wallet = walletStats(await store.listRedemptionsByInfluencer(influencer.id), new Date());
+    expect(wallet.pending).toBe(0);
+    expect(wallet.cancelled).toBe(21);
+  });
+
+  it("finds the sale by the store's own order id", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: false });
+    const sale = await redeemCode(store, {
+      code: code.code,
+      orderAmount: 100,
+      source: "api",
+      apiSecret: business.apiSecret,
+      externalOrderId: "SHOP-77",
+    });
+    const cancelled = await cancelRedemption(store, {
+      businessId: business.id,
+      externalOrderId: "SHOP-77",
+    });
+    expect(cancelled.id).toBe(sale.id);
+  });
+
+  it("is idempotent, because refund webhooks retry too", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: false });
+    const sale = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
+    await cancelRedemption(store, { businessId: business.id, redemptionId: sale.id });
+    await expect(
+      cancelRedemption(store, { businessId: business.id, redemptionId: sale.id }),
+    ).resolves.toMatchObject({ status: "cancelled" });
+  });
+
+  it("refuses to cancel a commission that was already paid out", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: false });
+    const sale = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
+    await store.setRedemptionStatus(sale.id, "paid");
+    await expect(
+      cancelRedemption(store, { businessId: business.id, redemptionId: sale.id }),
+    ).rejects.toMatchObject({ code: "ALREADY_PAID" });
+  });
+
+  it("does not let one business cancel another business's sale", async () => {
+    const a = await world({ newCustomersOnly: false });
+    const b = await world({ newCustomersOnly: false });
+    const saleOfA = await redeemCode(a.store, {
+      code: a.code.code,
+      orderAmount: 100,
+      source: "simulator",
+    });
+    // Same store instance is not shared, so reach across explicitly:
+    await expect(
+      cancelRedemption(a.store, { businessId: b.business.id, redemptionId: saleOfA.id }),
+    ).rejects.toMatchObject({ code: "REDEMPTION_NOT_FOUND" });
+    expect((await a.store.getRedemption(saleOfA.id))?.status).toBe("held");
+  });
+
+  it("reports a sale that does not exist as not found", async () => {
+    const { store, business } = await world();
+    await expect(
+      cancelRedemption(store, { businessId: business.id, externalOrderId: "NOPE" }),
+    ).rejects.toMatchObject({ code: "REDEMPTION_NOT_FOUND" });
   });
 });

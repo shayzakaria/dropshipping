@@ -251,6 +251,13 @@ export class SupabaseStore implements DataStore {
     return r ? toBusiness(r) : null;
   }
 
+  async getBusinessByApiSecret(apiSecret: string): Promise<Business | null> {
+    const r = await this.one<BusinessRow>(
+      this.db.from("businesses").select().eq("api_secret", apiSecret).maybeSingle<BusinessRow>(),
+    );
+    return r ? toBusiness(r) : null;
+  }
+
   // Campaigns ---------------------------------------------------------------
 
   async createCampaign(input: Omit<Campaign, "id" | "createdAt">): Promise<Campaign> {
@@ -404,6 +411,13 @@ export class SupabaseStore implements DataStore {
       .single<RedemptionRow>();
     if (error) throw new Error(error.message);
     return toRedemption(data!);
+  }
+
+  async getRedemption(id: string): Promise<Redemption | null> {
+    const r = await this.one<RedemptionRow>(
+      this.db.from("redemptions").select().eq("id", id).maybeSingle<RedemptionRow>(),
+    );
+    return r ? toRedemption(r) : null;
   }
 
   async listRedemptionsByBusiness(businessId: string): Promise<Redemption[]> {

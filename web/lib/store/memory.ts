@@ -65,6 +65,11 @@ export class MemoryStore implements DataStore {
     return null;
   }
 
+  async getBusinessByApiSecret(apiSecret: string): Promise<Business | null> {
+    for (const b of this.businesses.values()) if (b.apiSecret === apiSecret) return b;
+    return null;
+  }
+
   async createCampaign(input: Omit<Campaign, "id" | "createdAt">): Promise<Campaign> {
     const campaign: Campaign = { ...input, id: randomUUID(), createdAt: this.now() };
     this.campaigns.set(campaign.id, campaign);
@@ -126,6 +131,10 @@ export class MemoryStore implements DataStore {
     const r: Redemption = { ...input, id: randomUUID(), createdAt: this.now() };
     this.redemptions.set(r.id, r);
     return r;
+  }
+
+  async getRedemption(id: string): Promise<Redemption | null> {
+    return this.redemptions.get(id) ?? null;
   }
 
   async listRedemptionsByBusiness(businessId: string): Promise<Redemption[]> {

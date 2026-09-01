@@ -24,6 +24,8 @@ export interface DataStore {
   createBusiness(input: Omit<Business, "id" | "createdAt" | "apiSecret">): Promise<Business>;
   getBusiness(id: string): Promise<Business | null>;
   getBusinessByOwner(ownerId: string): Promise<Business | null>;
+  /** How a store authenticates itself to the public API */
+  getBusinessByApiSecret(apiSecret: string): Promise<Business | null>;
 
   // Campaigns
   createCampaign(input: Omit<Campaign, "id" | "createdAt">): Promise<Campaign>;
@@ -41,6 +43,7 @@ export interface DataStore {
 
   // Redemptions
   createRedemption(input: Omit<Redemption, "id" | "createdAt">): Promise<Redemption>;
+  getRedemption(id: string): Promise<Redemption | null>;
   listRedemptionsByBusiness(businessId: string): Promise<Redemption[]>;
   listRedemptionsByInfluencer(influencerId: string): Promise<Redemption[]>;
   /** Idempotency lookup: has this store's order already been recorded? */

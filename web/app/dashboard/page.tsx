@@ -16,7 +16,7 @@ import type { Business, Campaign, CouponCode, Redemption, User } from "@/lib/dom
 import { formatDate, formatILS } from "@/lib/format";
 import { getReadyStore } from "@/lib/store";
 import type { DataStore } from "@/lib/store/store";
-import { toggleCampaign } from "../actions";
+import { cancelSale, toggleCampaign } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -132,6 +132,19 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
         <p className="mt-2 text-xs leading-relaxed text-mut">
           שלחו תמיד את <code className="font-mono">order_id</code> — מספר ההזמנה בחנות שלכם. כך
           שליחה חוזרת של אותה הזמנה לא תירשם פעמיים ולא תחויבו בעמלה כפולה.
+        </p>
+        <p className="mt-4 text-sm font-bold">כשהזמנה מתבטלת או חוזרת</p>
+        <pre className="mt-2 overflow-x-auto rounded-lg bg-ink p-4 font-mono text-xs leading-relaxed text-label" dir="ltr">
+{`POST /api/refund
+{
+  "order_id": "1001",
+  "api_secret": "<המפתח שלך>"
+}`}
+        </pre>
+        <p className="mt-2 text-xs leading-relaxed text-mut">
+          העמלה מתבטלת ולא תשולם. אפשר גם לבטל ידנית מטבלת המכירות למעלה. עמלה
+          מוחזקת ממילא {COMMISSION_HOLD_DAYS} ימים לפני שהיא זמינה למשיכה — זה הזמן
+          שבו רוב ההחזרות מגיעות.
         </p>
         <p className="mt-2 text-xs text-mut">
           אפשר לנסות בלי אינטגרציה דרך <Link href="/simulate" className="font-semibold text-deal-deep underline underline-offset-2">סימולטור הקנייה</Link>.
@@ -311,11 +324,17 @@ function RedemptionsTable({
             {perspective === "business" ? <th className="px-4 py-3 font-semibold">דמי פלטפורמה</th> : null}
             {perspective === "influencer" ? <th className="px-4 py-3 font-semibold">מצב העמלה</th> : null}
             <th className="px-4 py-3 font-semibold">מדרגה</th>
+            {perspective === "business" ? <th className="px-4 py-3 font-semibold">החזרה</th> : null}
           </tr>
         </thead>
         <tbody>
           {redemptions.map((r) => (
-            <tr key={r.id} className="border-b border-ink/10 last:border-0">
+            <tr
+              key={r.id}
+              className={`border-b border-ink/10 last:border-0 ${
+                r.status === "cancelled" ? "text-mut/60 line-through decoration-ink/30" : ""
+              }`}
+            >
               <td className="px-4 py-2.5 text-mut">{formatDate(r.createdAt)}</td>
               {perspective === "business" ? (
                 <td className="px-4 py-2.5 font-medium">{names.get(r.influencerId) ?? "—"}</td>
@@ -337,6 +356,21 @@ function RedemptionsTable({
                 {r.tier === "GOLD" ? "זהב" : r.tier === "SILVER" ? "כסף" : "ברונזה"}
                 {r.tierBonusPct > 0 ? ` (+${r.tierBonusPct}%)` : ""}
               </td>
+              {perspective === "business" ? (
+                <td className="px-4 py-2.5">
+                  {r.status === "cancelled" ? (
+                    <Badge tone="warning">בוטלה</Badge>
+                  ) : r.status === "paid" ? (
+                    <span className="text-xs text-mut">שולם</span>
+                  ) : (
+                    <form action={cancelSale.bind(null, r.id)}>
+                      <button className="rounded-md border border-ink/25 px-2 py-1 text-xs font-semibold text-mut transition hover:border-err/50 hover:text-err">
+                        ביטול עמלה
+                      </button>
+                    </form>
+                  )}
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>
