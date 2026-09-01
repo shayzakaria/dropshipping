@@ -6,6 +6,8 @@ import { CopyButton } from "@/components/CopyButton";
 import { ShareCode } from "@/components/ShareCode";
 import { getCurrentUser } from "@/lib/auth";
 import {
+  CANCELLATION_REASONS,
+  cancellationReasonLabel,
   COMMISSION_HOLD_DAYS,
   commissionState,
   nextTier,
@@ -300,8 +302,22 @@ const COMMISSION_LABELS = {
 };
 
 function CommissionBadge({ redemption }: { redemption: Redemption }) {
-  const { text, tone } = COMMISSION_LABELS[commissionState(redemption)];
-  return <Badge tone={tone}>{text}</Badge>;
+  const state = commissionState(redemption);
+  const { text, tone } = COMMISSION_LABELS[state];
+  if (state !== "cancelled") return <Badge tone={tone}>{text}</Badge>;
+  // Money the influencer already saw is being taken back. Say when and why on
+  // the row itself, not in a place they would have to go looking for.
+  return (
+    <span className="flex flex-col items-start gap-0.5">
+      <Badge tone={tone}>{text}</Badge>
+      <span className="text-[11px] leading-tight text-mut">
+        {cancellationReasonLabel(redemption.cancellationReason)}
+        {redemption.cancelledAt
+          ? ` · ${new Date(redemption.cancelledAt).toLocaleDateString("he-IL")}`
+          : ""}
+      </span>
+    </span>
+  );
 }
 
 function RedemptionsTable({
@@ -364,11 +380,27 @@ function RedemptionsTable({
               {perspective === "business" ? (
                 <td className="px-4 py-2.5">
                   {r.status === "cancelled" ? (
-                    <Badge tone="warning">בוטלה</Badge>
+                    <span className="flex flex-col gap-0.5">
+                      <Badge tone="warning">בוטלה</Badge>
+                      <span className="text-[11px] text-mut">
+                        {cancellationReasonLabel(r.cancellationReason)}
+                      </span>
+                    </span>
                   ) : r.status === "paid" ? (
                     <span className="text-xs text-mut">שולם</span>
                   ) : (
-                    <form action={cancelSale.bind(null, r.id)}>
+                    <form action={cancelSale.bind(null, r.id)} className="flex items-center gap-1.5">
+                      <select
+                        name="reason"
+                        aria-label="סיבת הביטול"
+                        className="rounded-md border border-ink/25 bg-label px-1.5 py-1 text-xs text-ink focus:border-deal focus:outline-none"
+                      >
+                        {CANCELLATION_REASONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
                       <button className="rounded-md border border-ink/25 px-2 py-1 text-xs font-semibold text-mut transition hover:border-err/50 hover:text-err">
                         ביטול עמלה
                       </button>

@@ -658,3 +658,64 @@ describe("seeded example data is labelled as such", () => {
     expect(flags.filter((f) => !f).length).toBe(1); // the real one
   });
 });
+
+describe("a voided commission carries an explanation", () => {
+  async function soldAndCancelled(reason?: "returned" | "unpaid" | "fraud" | "error") {
+    const { store, business, code } = await world();
+    const sale = await redeemCode(store, {
+      code: code.code,
+      orderAmount: 200,
+      source: "api",
+      apiSecret: business.apiSecret,
+      customerRef: "buyer@x.com",
+    });
+    const at = new Date("2026-09-20T09:00:00Z");
+    const cancelled = await cancelRedemption(store, {
+      businessId: business.id,
+      redemptionId: sale.id,
+      reason,
+      now: at,
+    });
+    return { store, sale, cancelled, at };
+  }
+
+  it("records when and why", async () => {
+    const { cancelled, at } = await soldAndCancelled("fraud");
+    expect(cancelled.status).toBe("cancelled");
+    expect(cancelled.cancellationReason).toBe("fraud");
+    expect(cancelled.cancelledAt).toBe(at.toISOString());
+  });
+
+  it("persists both, so the influencer's dashboard can show them", async () => {
+    const { store, sale } = await soldAndCancelled("unpaid");
+    const stored = await store.getRedemption(sale.id);
+    expect(stored?.cancellationReason).toBe("unpaid");
+    expect(stored?.cancelledAt).toBeTruthy();
+  });
+
+  it("defaults to a return rather than inventing a reason", async () => {
+    const { cancelled } = await soldAndCancelled(undefined);
+    expect(cancelled.cancellationReason).toBe("returned");
+  });
+
+  it("keeps the original record when a refund webhook retries", async () => {
+    const { store, sale, cancelled } = await soldAndCancelled("fraud");
+    const again = await cancelRedemption(store, {
+      businessId: (await store.getRedemption(sale.id))!.businessId,
+      redemptionId: sale.id,
+      reason: "error",
+      now: new Date("2026-10-01T00:00:00Z"),
+    });
+    // A retry must not rewrite history into a different reason and date
+    expect(again.cancellationReason).toBe("fraud");
+    expect(again.cancelledAt).toBe(cancelled.cancelledAt);
+  });
+
+  it("turns an unrecognised reason from the wire into the safe default", async () => {
+    const { parseCancellationReason } = await import("@/lib/domain/logic");
+    expect(parseCancellationReason("fraud")).toBe("fraud");
+    expect(parseCancellationReason("' or 1=1--")).toBe("returned");
+    expect(parseCancellationReason(undefined)).toBe("returned");
+    expect(parseCancellationReason({ evil: true })).toBe("returned");
+  });
+});

@@ -1,5 +1,6 @@
 import type {
   Business,
+  CancellationReason,
   Campaign,
   CampaignStatus,
   CouponCode,
@@ -60,8 +61,16 @@ export interface DataStore {
     businessId: string,
     externalOrderId: string,
   ): Promise<Redemption | null>;
-  /** Cancel a commission (order returned) or mark it paid out */
-  setRedemptionStatus(id: string, status: RedemptionStatus): Promise<void>;
+  /**
+   * Cancel a commission (order returned) or mark it paid out. Cancelling
+   * carries an audit trail: the influencer is losing money and is owed both
+   * a timestamp and a reason.
+   */
+  setRedemptionStatus(
+    id: string,
+    status: RedemptionStatus,
+    cancellation?: { at: string; reason: CancellationReason },
+  ): Promise<void>;
   countInfluencerRedemptionsInMonth(influencerId: string, at: Date): Promise<number>;
   countCampaignRedemptionsInMonth(campaignId: string, at: Date): Promise<number>;
   hasCustomerBoughtBefore(businessId: string, customerHash: string): Promise<boolean>;

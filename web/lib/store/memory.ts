@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import type {
   Business,
+  CancellationReason,
   Campaign,
   CampaignStatus,
   CouponCode,
@@ -165,9 +166,19 @@ export class MemoryStore implements DataStore {
     return null;
   }
 
-  async setRedemptionStatus(id: string, status: RedemptionStatus): Promise<void> {
+  async setRedemptionStatus(
+    id: string,
+    status: RedemptionStatus,
+    cancellation?: { at: string; reason: CancellationReason },
+  ): Promise<void> {
     const r = this.redemptions.get(id);
-    if (r) this.redemptions.set(id, { ...r, status });
+    if (!r) return;
+    this.redemptions.set(id, {
+      ...r,
+      status,
+      cancelledAt: cancellation?.at ?? r.cancelledAt,
+      cancellationReason: cancellation?.reason ?? r.cancellationReason,
+    });
   }
 
   // Cancelled sales came back, so they must not earn a tier or eat a budget cap

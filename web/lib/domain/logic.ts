@@ -1,4 +1,11 @@
-import type { Campaign, CommissionState, Redemption, Split, Tier } from "./types";
+import type {
+  CancellationReason,
+  Campaign,
+  CommissionState,
+  Redemption,
+  Split,
+  Tier,
+} from "./types";
 
 export class DomainError extends Error {
   constructor(
@@ -123,6 +130,30 @@ export function monthKey(date: Date): string {
  * law gives a distance-selling buyer 14 days to cancel a purchase, so paying
  * earlier risks paying commission on a sale that comes back.
  */
+/**
+ * Why a commission was voided, in the influencer's language. Kept to four
+ * options on purpose: a free-text box would produce blanks and one-word
+ * answers, and this list is short enough that a business will actually pick
+ * the true one.
+ */
+export const CANCELLATION_REASONS = [
+  { value: "returned", label: "ההזמנה הוחזרה" },
+  { value: "unpaid", label: "ההזמנה לא שולמה" },
+  { value: "fraud", label: "חשד להונאה" },
+  { value: "error", label: "טעות ברישום" },
+] as const satisfies ReadonlyArray<{ value: CancellationReason; label: string }>;
+
+export function cancellationReasonLabel(reason: CancellationReason | undefined): string {
+  return CANCELLATION_REASONS.find((r) => r.value === reason)?.label ?? "לא צוינה סיבה";
+}
+
+/** Narrow an untrusted string to a reason, falling back to the refund default. */
+export function parseCancellationReason(raw: unknown): CancellationReason {
+  return CANCELLATION_REASONS.some((r) => r.value === raw)
+    ? (raw as CancellationReason)
+    : "returned";
+}
+
 export const COMMISSION_HOLD_DAYS = 14;
 
 /** Nothing is paid out below this amount, to keep transfer costs sane */

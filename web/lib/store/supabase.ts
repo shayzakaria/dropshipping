@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
   Business,
+  CancellationReason,
   Campaign,
   CampaignStatus,
   CouponCode,
@@ -73,6 +74,8 @@ type RedemptionRow = {
   tier: TierName;
   tier_bonus_pct: number | string;
   customer_hash: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: CancellationReason | null;
   external_order_id: string | null;
   status: RedemptionStatus;
   hold_until: string;
@@ -136,6 +139,8 @@ const toRedemption = (r: RedemptionRow): Redemption => ({
   tier: r.tier,
   tierBonusPct: num(r.tier_bonus_pct),
   customerHash: r.customer_hash ?? undefined,
+  cancelledAt: r.cancelled_at ?? undefined,
+  cancellationReason: r.cancellation_reason ?? undefined,
   externalOrderId: r.external_order_id ?? undefined,
   status: r.status,
   holdUntil: r.hold_until,
@@ -494,8 +499,17 @@ export class SupabaseStore implements DataStore {
     return r ? toRedemption(r) : null;
   }
 
-  async setRedemptionStatus(id: string, status: RedemptionStatus): Promise<void> {
-    const { error } = await this.db.from("redemptions").update({ status }).eq("id", id);
+  async setRedemptionStatus(
+    id: string,
+    status: RedemptionStatus,
+    cancellation?: { at: string; reason: CancellationReason },
+  ): Promise<void> {
+    const patch: Record<string, unknown> = { status };
+    if (cancellation) {
+      patch.cancelled_at = cancellation.at;
+      patch.cancellation_reason = cancellation.reason;
+    }
+    const { error } = await this.db.from("redemptions").update(patch).eq("id", id);
     if (error) throw new Error(error.message);
   }
 

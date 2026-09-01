@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { DomainError } from "@/lib/domain/logic";
+import { DomainError, parseCancellationReason } from "@/lib/domain/logic";
 import { cancelRedemption } from "@/lib/domain/service";
 import { getReadyStore } from "@/lib/store";
 import { ANON_ATTEMPTS_PER_WINDOW, callerIp, checkRateLimit } from "@/lib/rate-limit";
@@ -32,6 +32,9 @@ export async function POST(request: Request) {
   const apiSecret = typeof body.api_secret === "string" ? body.api_secret : "";
   const externalOrderId = typeof body.order_id === "string" ? body.order_id : undefined;
   const redemptionId = typeof body.redemption_id === "string" ? body.redemption_id : undefined;
+  // Unrecognised or absent falls back to "returned" — this endpoint is the
+  // refund hook, so that is the truthful default rather than a guess.
+  const reason = parseCancellationReason(body.reason);
 
   const store = await getReadyStore();
 
@@ -57,6 +60,7 @@ export async function POST(request: Request) {
       businessId: business.id,
       externalOrderId,
       redemptionId,
+      reason,
     });
     return NextResponse.json({
       ok: true,

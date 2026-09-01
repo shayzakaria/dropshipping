@@ -8,7 +8,7 @@ import {
   tierForMonthlySales,
 } from "./logic";
 import { hashCustomerRef } from "./privacy";
-import type { Redemption, RedemptionSource } from "./types";
+import type { CancellationReason, Redemption, RedemptionSource } from "./types";
 
 export interface RedeemInput {
   code: string;
@@ -160,6 +160,10 @@ export interface CancelInput {
   /** Identify the sale by our id or by the store's own order id */
   redemptionId?: string;
   externalOrderId?: string;
+  /** What the influencer will be told. Defaults to the ordinary case. */
+  reason?: CancellationReason;
+  /** Injectable clock for tests */
+  now?: Date;
 }
 
 /**
@@ -192,6 +196,18 @@ export async function cancelRedemption(
     throw new DomainError("ALREADY_PAID", "העמלה כבר שולמה ולא ניתן לבטל אותה אוטומטית");
   }
 
-  await store.setRedemptionStatus(found.id, "cancelled");
-  return { ...found, status: "cancelled" };
+  // Record when and why, not just that. The influencer is losing money they
+  // already saw in their dashboard; a struck-through row with no explanation
+  // is how a platform loses the people it depends on.
+  const cancellation = {
+    at: (input.now ?? new Date()).toISOString(),
+    reason: input.reason ?? ("returned" as const),
+  };
+  await store.setRedemptionStatus(found.id, "cancelled", cancellation);
+  return {
+    ...found,
+    status: "cancelled",
+    cancelledAt: cancellation.at,
+    cancellationReason: cancellation.reason,
+  };
 }

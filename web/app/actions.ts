@@ -3,7 +3,12 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { clearSession, getCurrentUser, setSession } from "@/lib/auth";
-import { DomainError, PLATFORM_PCT, validateCampaignSplit } from "@/lib/domain/logic";
+import {
+  DomainError,
+  PLATFORM_PCT,
+  parseCancellationReason,
+  validateCampaignSplit,
+} from "@/lib/domain/logic";
 import { cancelRedemption, redeemCode } from "@/lib/domain/service";
 import { getReadyStore, isDemoMode } from "@/lib/store";
 import { authErrorMessage, getAuthClient, isAuthConfigured } from "@/lib/supabase-auth";
@@ -182,14 +187,15 @@ export async function toggleCampaign(campaignId: string): Promise<void> {
 }
 
 /** The business voids a commission after a return. Ownership is enforced. */
-export async function cancelSale(redemptionId: string): Promise<void> {
+export async function cancelSale(redemptionId: string, formData: FormData): Promise<void> {
   const user = await getCurrentUser();
   if (!user || user.role !== "business") redirect("/login");
   const store = await getReadyStore();
   const business = await store.getBusinessByOwner(user.id);
   if (!business) return;
+  const reason = parseCancellationReason(formData.get("reason"));
   try {
-    await cancelRedemption(store, { businessId: business.id, redemptionId });
+    await cancelRedemption(store, { businessId: business.id, redemptionId, reason });
   } catch (e) {
     // A sale that is missing, already paid, or not this business's stays as it is
     if (!(e instanceof DomainError)) throw e;

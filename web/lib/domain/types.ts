@@ -65,6 +65,9 @@ export interface CouponCode {
 
 export type RedemptionSource = "api" | "manual" | "simulator";
 
+/** The reasons a business may void a commission. Deliberately short. */
+export type CancellationReason = "returned" | "unpaid" | "fraud" | "error";
+
 /**
  * Stored lifecycle of a redemption's commission.
  *  - "held"      the normal state: money is set aside during the return window
@@ -98,6 +101,13 @@ export interface Redemption {
   status: RedemptionStatus;
   /** Commission is payable only from this moment on — the buyer's return window */
   holdUntil: string;
+  /** When the commission was voided. Absent unless status is "cancelled". */
+  cancelledAt?: string;
+  /**
+   * Why it was voided. An influencer watching money disappear from their
+   * dashboard is owed an answer, and "the business clicked a button" is not one.
+   */
+  cancellationReason?: CancellationReason;
   source: RedemptionSource;
   createdAt: string;
 }
