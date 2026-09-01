@@ -1,0 +1,163 @@
+import { randomUUID } from "crypto";
+import type {
+  Business,
+  Campaign,
+  CampaignStatus,
+  CouponCode,
+  Redemption,
+  User,
+} from "../domain/types";
+import { generateCode, monthKey, normalizeCode } from "../domain/logic";
+import type { DataStore } from "./store";
+
+export class MemoryStore implements DataStore {
+  users = new Map<string, User>();
+  businesses = new Map<string, Business>();
+  campaigns = new Map<string, Campaign>();
+  codes = new Map<string, CouponCode>();
+  redemptions = new Map<string, Redemption>();
+
+  private now(): string {
+    return new Date().toISOString();
+  }
+
+  async createUser(input: Omit<User, "id" | "createdAt">): Promise<User> {
+    const email = input.email.trim().toLowerCase();
+    const existing = await this.getUserByEmail(email);
+    if (existing) throw new Error("EMAIL_TAKEN");
+    const user: User = { ...input, email, id: randomUUID(), createdAt: this.now() };
+    this.users.set(user.id, user);
+    return user;
+  }
+
+  async getUser(id: string): Promise<User | null> {
+    return this.users.get(id) ?? null;
+  }
+
+  async getUserByEmail(email: string): Promise<User | null> {
+    const needle = email.trim().toLowerCase();
+    for (const u of this.users.values()) if (u.email === needle) return u;
+    return null;
+  }
+
+  async listUsers(): Promise<User[]> {
+    return [...this.users.values()];
+  }
+
+  async createBusiness(input: Omit<Business, "id" | "createdAt" | "apiSecret">): Promise<Business> {
+    const business: Business = {
+      ...input,
+      id: randomUUID(),
+      apiSecret: randomUUID(),
+      createdAt: this.now(),
+    };
+    this.businesses.set(business.id, business);
+    return business;
+  }
+
+  async getBusiness(id: string): Promise<Business | null> {
+    return this.businesses.get(id) ?? null;
+  }
+
+  async getBusinessByOwner(ownerId: string): Promise<Business | null> {
+    for (const b of this.businesses.values()) if (b.ownerId === ownerId) return b;
+    return null;
+  }
+
+  async createCampaign(input: Omit<Campaign, "id" | "createdAt">): Promise<Campaign> {
+    const campaign: Campaign = { ...input, id: randomUUID(), createdAt: this.now() };
+    this.campaigns.set(campaign.id, campaign);
+    return campaign;
+  }
+
+  async getCampaign(id: string): Promise<Campaign | null> {
+    return this.campaigns.get(id) ?? null;
+  }
+
+  async listActiveCampaigns(): Promise<Campaign[]> {
+    return [...this.campaigns.values()].filter((c) => c.status === "active");
+  }
+
+  async listCampaignsByBusiness(businessId: string): Promise<Campaign[]> {
+    return [...this.campaigns.values()].filter((c) => c.businessId === businessId);
+  }
+
+  async setCampaignStatus(id: string, status: CampaignStatus): Promise<void> {
+    const c = this.campaigns.get(id);
+    if (c) this.campaigns.set(id, { ...c, status });
+  }
+
+  async createCode(input: Omit<CouponCode, "id" | "createdAt" | "code">): Promise<CouponCode> {
+    const existing = await this.getCodeForInfluencerCampaign(input.influencerId, input.campaignId);
+    if (existing) return existing;
+    let code = generateCode();
+    while (await this.getCodeByCode(code)) code = generateCode();
+    const record: CouponCode = { ...input, code, id: randomUUID(), createdAt: this.now() };
+    this.codes.set(record.id, record);
+    return record;
+  }
+
+  async getCodeByCode(code: string): Promise<CouponCode | null> {
+    const needle = normalizeCode(code);
+    for (const c of this.codes.values()) if (c.code === needle) return c;
+    return null;
+  }
+
+  async getCodeForInfluencerCampaign(
+    influencerId: string,
+    campaignId: string,
+  ): Promise<CouponCode | null> {
+    for (const c of this.codes.values()) {
+      if (c.influencerId === influencerId && c.campaignId === campaignId) return c;
+    }
+    return null;
+  }
+
+  async listCodesByInfluencer(influencerId: string): Promise<CouponCode[]> {
+    return [...this.codes.values()].filter((c) => c.influencerId === influencerId);
+  }
+
+  async listCodesByCampaign(campaignId: string): Promise<CouponCode[]> {
+    return [...this.codes.values()].filter((c) => c.campaignId === campaignId);
+  }
+
+  async createRedemption(input: Omit<Redemption, "id" | "createdAt">): Promise<Redemption> {
+    const r: Redemption = { ...input, id: randomUUID(), createdAt: this.now() };
+    this.redemptions.set(r.id, r);
+    return r;
+  }
+
+  async listRedemptionsByBusiness(businessId: string): Promise<Redemption[]> {
+    return [...this.redemptions.values()]
+      .filter((r) => r.businessId === businessId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async listRedemptionsByInfluencer(influencerId: string): Promise<Redemption[]> {
+    return [...this.redemptions.values()]
+      .filter((r) => r.influencerId === influencerId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async countInfluencerRedemptionsInMonth(influencerId: string, at: Date): Promise<number> {
+    const key = monthKey(at);
+    return [...this.redemptions.values()].filter(
+      (r) => r.influencerId === influencerId && monthKey(new Date(r.createdAt)) === key,
+    ).length;
+  }
+
+  async countCampaignRedemptionsInMonth(campaignId: string, at: Date): Promise<number> {
+    const key = monthKey(at);
+    return [...this.redemptions.values()].filter(
+      (r) => r.campaignId === campaignId && monthKey(new Date(r.createdAt)) === key,
+    ).length;
+  }
+
+  async hasCustomerBoughtBefore(businessId: string, customerRef: string): Promise<boolean> {
+    const needle = customerRef.trim().toLowerCase();
+    for (const r of this.redemptions.values()) {
+      if (r.businessId === businessId && r.customerRef?.trim().toLowerCase() === needle) return true;
+    }
+    return false;
+  }
+}

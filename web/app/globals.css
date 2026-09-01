@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0b1020;
+  --foreground: #eef1f8;
+}
+
+body {
+  background:
+    radial-gradient(1200px 800px at 80% -10%, #1e2a5a 0%, var(--background) 55%),
+    radial-gradient(900px 600px at 10% 110%, #143430 0%, transparent 60%),
+    var(--background);
+  color: var(--foreground);
+  font-family: "Heebo", system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+.grad-text {
+  background: linear-gradient(90deg, #6ee7b7, #818cf8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
