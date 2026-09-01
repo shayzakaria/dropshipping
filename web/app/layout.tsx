@@ -4,6 +4,7 @@ import "./globals.css";
 import { getCurrentUser } from "@/lib/auth";
 import { logout } from "./actions";
 import { TagIcon } from "@/components/icons";
+import { isPersistent } from "@/lib/store";
 
 export const metadata: Metadata = {
   title: "BOOST — קוד קופון אחד, כולם מרוויחים",
@@ -84,7 +85,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
         <footer className="mx-auto max-w-5xl px-4 pb-8 pt-6">
           <div className="perforation pt-4 text-center text-xs text-mut">
-            דמו — הנתונים נשמרים בזיכרון ומתאפסים בפריסה מחדש · חיבור Supabase בהמשך
+            {isPersistent()
+              ? "גרסת דמו · הנתונים נשמרים בבסיס נתונים אמיתי (Supabase)"
+              : "גרסת דמו מקומית · הנתונים בזיכרון בלבד"}
           </div>
         </footer>
       </body>
