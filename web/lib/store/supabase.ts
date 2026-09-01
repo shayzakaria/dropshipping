@@ -130,8 +130,12 @@ const toRedemption = (r: RedemptionRow): Redemption => ({
   createdAt: r.created_at,
 });
 
-/** UTC calendar-month window, matching monthKey() in lib/domain/logic */
-function monthWindow(at: Date): { start: string; next: string } {
+/**
+ * UTC calendar-month window [start, next), the range form of monthKey() in
+ * lib/domain/logic. Tier bonuses depend on this being exactly the same month
+ * the in-memory store counts, so it is unit tested.
+ */
+export function monthWindow(at: Date): { start: string; next: string } {
   const start = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), 1));
   const next = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth() + 1, 1));
   return { start: start.toISOString(), next: next.toISOString() };
