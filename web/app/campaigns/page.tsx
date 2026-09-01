@@ -20,14 +20,14 @@ export default async function CampaignsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-extrabold">קמפיינים פתוחים</h1>
-      <p className="mt-1 text-sm text-slate-400">
+      <h1 className="font-display text-6xl leading-none">קמפיינים פתוחים</h1>
+      <p className="mt-2 text-sm text-mut">
         {user?.role === "influencer"
           ? `המדרגה שלך: ${tier.label}${tier.bonusPct ? ` (+${tier.bonusPct}% בונוס עמלה)` : ""} — הצטרפו לקמפיין וקבלו קוד אישי.`
           : "כך נראה ההיצע שמשפיענים רואים. הצטרפות לקמפיין דורשת חשבון משפיען."}
       </p>
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
-        {campaigns.length === 0 && <p className="text-sm text-slate-400">אין כרגע קמפיינים פעילים.</p>}
+        {campaigns.length === 0 && <p className="text-sm text-mut">אין כרגע קמפיינים פעילים.</p>}
         {await Promise.all(
           campaigns.map(async (c) => {
             const business = await store.getBusiness(c.businessId);
@@ -37,13 +37,13 @@ export default async function CampaignsPage() {
               <Card key={c.id}>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-bold">{c.title}</h3>
-                    <p className="text-xs text-slate-400">{business?.name}</p>
+                    <h3 className="text-lg font-bold">{c.title}</h3>
+                    <p className="text-xs text-mut">{business?.name}</p>
                   </div>
                   <Badge>{joined} משפיענים</Badge>
                 </div>
                 {c.description ? (
-                  <p className="mt-2 text-sm font-light text-slate-300">{c.description}</p>
+                  <p className="mt-2 text-sm font-light text-mut">{c.description}</p>
                 ) : null}
                 <div className="mt-3 flex flex-wrap gap-2 text-xs">
                   <Badge tone="success">הקונה חוסך {c.buyerDiscountPct}%</Badge>
@@ -55,18 +55,18 @@ export default async function CampaignsPage() {
                 <div className="mt-4">
                   {myCode ? (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400">הקוד שלך:</span>
-                      <code className="font-extrabold tracking-widest text-emerald-300" dir="ltr">
+                      <span className="text-xs text-mut">הקוד שלך:</span>
+                      <code className="font-mono font-bold tracking-widest" dir="ltr">
                         {myCode.code}
                       </code>
                       <CopyButton text={myCode.code} />
                     </div>
                   ) : user?.role === "influencer" ? (
                     <form action={joinCampaign.bind(null, c.id)}>
-                      <button className={btnPrimary}>הצטרפות — קבלו קוד אישי</button>
+                      <button className={btnPrimary}>הצטרפות — קבלת קוד אישי</button>
                     </form>
                   ) : (
-                    <Link href="/login" className="text-sm text-emerald-300 underline">
+                    <Link href="/login" className="text-sm font-semibold text-deal-deep underline underline-offset-2">
                       היכנסו כמשפיען כדי להצטרף
                     </Link>
                   )}

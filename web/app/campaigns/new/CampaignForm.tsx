@@ -34,7 +34,7 @@ export function CampaignForm() {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="block text-sm">
-          <span className="text-slate-300">הנחה לקונה (%)</span>
+          <span className="font-medium">הנחה לקונה (%)</span>
           <input
             type="number"
             name="buyerDiscountPct"
@@ -42,11 +42,11 @@ export function CampaignForm() {
             onChange={(e) => setBuyerDiscountPct(Number(e.target.value))}
             min={1}
             max={40}
-            className={`${inputCls} mt-1`}
+            className={`${inputCls} tabular mt-1 font-mono`}
           />
         </label>
         <label className="block text-sm">
-          <span className="text-slate-300">עמלת משפיען (%)</span>
+          <span className="font-medium">עמלת משפיען (%)</span>
           <input
             type="number"
             name="influencerPct"
@@ -54,63 +54,63 @@ export function CampaignForm() {
             onChange={(e) => setInfluencerPct(Number(e.target.value))}
             min={1}
             max={30}
-            className={`${inputCls} mt-1`}
+            className={`${inputCls} tabular mt-1 font-mono`}
           />
         </label>
         <label className="block text-sm">
-          <span className="text-slate-300">דמי פלטפורמה (%)</span>
+          <span className="font-medium">דמי פלטפורמה (%)</span>
           <input
             type="number"
             name="platformPct"
             value={platformPct}
             readOnly
-            className={`${inputCls} mt-1 opacity-60`}
+            className={`${inputCls} tabular mt-1 font-mono opacity-60`}
           />
         </label>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
-        <div className="font-semibold">
+      <div className="rounded-lg border-2 border-dashed border-ink/30 bg-paper p-4 text-sm">
+        <div className="font-bold">
           תצוגה מקדימה — קנייה של {nis(EXAMPLE_ORDER)} · סך הטבה {totalPct}%
         </div>
         {preview ? (
-          <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+          <div className="tabular mt-3 grid grid-cols-2 gap-3 font-mono text-xs sm:grid-cols-4">
             <div>
-              <div className="text-slate-400">הקונה חוסך</div>
-              <div className="font-bold text-emerald-300">{nis(preview.buyerDiscount)}</div>
+              <div className="font-sans text-mut">הקונה חוסך</div>
+              <div className="mt-0.5 text-base font-bold">{nis(preview.buyerDiscount)}</div>
             </div>
             <div>
-              <div className="text-slate-400">המשפיען מקבל</div>
-              <div className="font-bold text-indigo-300">{nis(preview.influencerCommission)}</div>
+              <div className="font-sans text-mut">המשפיען מקבל</div>
+              <div className="mt-0.5 text-base font-bold text-deal-deep">{nis(preview.influencerCommission)}</div>
             </div>
             <div>
-              <div className="text-slate-400">הפלטפורמה</div>
-              <div className="font-bold">{nis(preview.platformFee)}</div>
+              <div className="font-sans text-mut">הפלטפורמה</div>
+              <div className="mt-0.5 text-base font-bold">{nis(preview.platformFee)}</div>
             </div>
             <div>
-              <div className="text-slate-400">נשאר לעסק</div>
-              <div className="font-bold">{nis(EXAMPLE_ORDER - preview.businessTotalCost)}</div>
+              <div className="font-sans text-mut">נשאר לעסק</div>
+              <div className="mt-0.5 text-base font-bold">{nis(EXAMPLE_ORDER - preview.businessTotalCost)}</div>
             </div>
           </div>
         ) : (
-          <p className="mt-2 text-xs text-rose-400">האחוזים לא תקינים</p>
+          <p className="mt-2 text-xs font-medium text-err">האחוזים לא תקינים</p>
         )}
-        <p className="mt-2 text-xs text-slate-400">
+        <p className="mt-3 text-xs text-mut">
           בונוסים למשפיענים מצטיינים ממומנים מדמי הפלטפורמה — העלות שלך לא משתנה.
         </p>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-slate-300">
-        <input type="checkbox" name="newCustomersOnly" defaultChecked className="accent-emerald-400" />
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="newCustomersOnly" defaultChecked />
         הקופון תקף ללקוחות חדשים בלבד (מומלץ — מונע הנחות ללקוחות שהיו קונים ממילא)
       </label>
 
       <label className="block text-sm">
-        <span className="text-slate-300">תקרת מימושים חודשית (אופציונלי — רשת ביטחון לתקציב)</span>
-        <input type="number" name="maxRedemptionsPerMonth" min={1} placeholder="ללא תקרה" className={`${inputCls} mt-1`} />
+        <span className="font-medium">תקרת מימושים חודשית (אופציונלי — רשת ביטחון לתקציב)</span>
+        <input type="number" name="maxRedemptionsPerMonth" min={1} placeholder="ללא תקרה" className={`${inputCls} tabular mt-1 font-mono`} />
       </label>
 
-      {state.error ? <p className="text-sm text-rose-400">{state.error}</p> : null}
+      {state.error ? <p className="text-sm font-medium text-err">{state.error}</p> : null}
       <button type="submit" disabled={pending} className={btnPrimary}>
         {pending ? "יוצר…" : "יצירת קמפיין"}
       </button>

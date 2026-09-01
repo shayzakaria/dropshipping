@@ -16,9 +16,9 @@ export function CopyButton({ text }: { text: string }) {
           // clipboard unavailable (e.g. http) — ignore
         }
       }}
-      className="rounded-lg border border-white/15 px-2 py-1 text-xs text-slate-300 transition hover:bg-white/10"
+      className="rounded-md border border-ink/30 bg-label px-2 py-1 text-xs font-semibold text-ink transition hover:bg-paper"
     >
-      {copied ? "הועתק ✓" : "העתק"}
+      {copied ? "הועתק ✓" : "העתקה"}
     </button>
   );
 }

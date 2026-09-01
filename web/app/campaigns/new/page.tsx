@@ -10,8 +10,8 @@ export default async function NewCampaignPage() {
   if (!user || user.role !== "business") redirect("/login");
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-extrabold">קמפיין חדש</h1>
-      <p className="mt-1 text-sm text-slate-400">
+      <h1 className="font-display text-6xl leading-none">קמפיין חדש</h1>
+      <p className="mt-2 text-sm text-mut">
         מגדירים פעם אחת כמה שווה לכם מכירה — ומשלמים רק כשהיא קורית.
       </p>
       <Card className="mt-5">

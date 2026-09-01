@@ -5,7 +5,7 @@ import { SimulatorForm } from "./SimulatorForm";
 export const dynamic = "force-dynamic";
 
 export default async function SimulatePage() {
-  // Surface a real seeded code so visitors can try the flow instantly
+  // מציג קוד אמיתי מנתוני הדמו כדי שאפשר יהיה לנסות מיד
   const store = await getReadyStore();
   const campaigns = await store.listActiveCampaigns();
   let demoCode: string | undefined;
@@ -19,8 +19,8 @@ export default async function SimulatePage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <h1 className="text-2xl font-extrabold">סימולטור קנייה 🛒</h1>
-      <p className="mt-1 text-sm font-light leading-relaxed text-slate-400">
+      <h1 className="font-display text-6xl leading-none">סימולטור קנייה</h1>
+      <p className="mt-2 text-sm font-light leading-relaxed text-mut">
         זה בדיוק מה שהחנות של העסק תעשה בקופה דרך ה-API: לאמת קוד, לחשב את החלוקה ולרשום
         את המכירה. נסו גם מקרים שנדחים — קוד שגוי, קנייה עצמית של משפיען, או לקוח חוזר
         בקמפיין שמיועד ללקוחות חדשים.

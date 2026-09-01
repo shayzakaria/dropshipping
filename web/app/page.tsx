@@ -1,92 +1,189 @@
 import Link from "next/link";
-import { Card } from "@/components/ui";
+import { Barcode } from "@/components/Barcode";
+import { BagIcon, MegaphoneIcon, ScissorsIcon, StoreIcon } from "@/components/icons";
+import { btnPrimary, btnStamp } from "@/components/ui";
 import { computeSplit } from "@/lib/domain/logic";
 import { formatILS } from "@/lib/format";
 
 const exampleCampaign = { buyerDiscountPct: 10, influencerPct: 7, platformPct: 3 };
+const EXAMPLE_ORDER = 300;
+
+const steps = [
+  {
+    n: "1",
+    icon: StoreIcon,
+    title: "העסק מדביק מחיר למכירה",
+    text: "קובע פעם אחת תקציב הטבה קבוע — למשל 20% מכל מכירה — שמתחלק בין הנחה, עמלה ודמי פלטפורמה. אפס עלות מראש.",
+  },
+  {
+    n: "2",
+    icon: MegaphoneIcon,
+    title: "המשפיען מפיץ קוד אישי",
+    text: "כל אחד יכול להצטרף לקמפיין, לקבל קוד ייחודי ולשתף אותו בסטורי, בטיקטוק או בקבוצת הוואטסאפ.",
+  },
+  {
+    n: "3",
+    icon: BagIcon,
+    title: "הקונה מזין — כולם מרוויחים",
+    text: "הנחה מיידית בקופה, עמלה למשפיען, מכירה חדשה לעסק. הכול נרשם אוטומטית ושקוף לכולם.",
+  },
+];
+
+const tiers = [
+  { label: "ברונזה", bonus: "עמלת הבסיס", sub: "עד 9 מכירות בחודש", ring: "#b87f4f" },
+  { label: "כסף", bonus: "‎+1% בונוס", sub: "מ-10 מכירות בחודש", ring: "#a8a294" },
+  { label: "זהב", bonus: "‎+2% בונוס", sub: "מ-30 מכירות בחודש", ring: "#d9a92c" },
+];
 
 export default function Home() {
-  const split = computeSplit(300, exampleCampaign);
+  const split = computeSplit(EXAMPLE_ORDER, exampleCampaign);
   return (
-    <div className="flex flex-col items-center py-8 text-center">
-      <div className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold text-emerald-300">
-        🚧 MVP חי — אפשר להתנסות בכל המערכת עכשיו
-      </div>
-      <h1 className="mt-6 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">
-        קוד קופון אחד.
-        <br />
-        <span className="grad-text">כולם מרוויחים.</span>
-      </h1>
-      <p className="mt-5 max-w-xl text-lg font-light leading-relaxed text-slate-400">
-        עסקים חדשים מקבלים צבא של משווקים בלי לגייס אף עובד — ומשלמים רק כשמכירה קרתה
-        בפועל. כל אחד יכול להיות משפיען ולהרוויח עמלה אמיתית מכל קנייה.
-      </p>
-      <div className="mt-8 flex gap-3">
-        <Link
-          href="/login"
-          className="rounded-xl bg-emerald-400 px-6 py-3 font-bold text-slate-900 transition hover:bg-emerald-300"
-        >
-          מתחילים — עסק או משפיען
-        </Link>
-        <Link
-          href="/simulate"
-          className="rounded-xl border border-white/15 px-6 py-3 font-semibold text-slate-200 transition hover:bg-white/10"
-        >
-          לנסות קנייה עם קוד
-        </Link>
-      </div>
-
-      <div className="mt-14 grid w-full gap-4 sm:grid-cols-3">
-        <Card>
-          <div className="text-2xl">🏪</div>
-          <h3 className="mt-2 font-bold">העסק מגדיר קמפיין</h3>
-          <p className="mt-1 text-sm font-light leading-relaxed text-slate-400">
-            קובע תקציב הטבה קבוע מכל מכירה — למשל 20% — שמתחלק בין הנחה, עמלה ודמי
-            פלטפורמה. אפס עלות מראש.
+    <div>
+      {/* ויופורט ראשון: הטענה מימין, ההוכחה משמאל */}
+      <section className="grid items-center gap-10 py-8 lg:grid-cols-[1.1fr_1fr]">
+        <div>
+          <h1 className="font-display text-[3.3rem] leading-[1.02] sm:text-[5rem] sm:leading-[0.98]">
+            <span className="whitespace-nowrap">קוד קופון אחד.</span>
+            <br />
+            <span className="mark-hl whitespace-nowrap">כולם מרוויחים.</span>
+          </h1>
+          <p className="mt-6 max-w-md text-lg font-light leading-relaxed text-mut">
+            עסקים חדשים מקבלים צבא של משווקים בלי לגייס אף עובד — ומשלמים רק כשמכירה
+            קרתה בפועל. כל אחד יכול להיות משפיען ולהרוויח עמלה אמיתית מכל קנייה.
           </p>
-        </Card>
-        <Card>
-          <div className="text-2xl">📣</div>
-          <h3 className="mt-2 font-bold">המשפיען מפיץ קוד אישי</h3>
-          <p className="mt-1 text-sm font-light leading-relaxed text-slate-400">
-            כל אחד יכול להצטרף, לקבל קוד ייחודי לכל קמפיין ולשתף אותו — בסטורי, בקבוצה,
-            בכל מקום.
-          </p>
-        </Card>
-        <Card>
-          <div className="text-2xl">🛍️</div>
-          <h3 className="mt-2 font-bold">הקונה מזין את הקוד</h3>
-          <p className="mt-1 text-sm font-light leading-relaxed text-slate-400">
-            מקבל הנחה מיידית בקופה. המכירה נרשמת, העמלה נזקפת למשפיען — הכול שקוף לכולם.
-          </p>
-        </Card>
-      </div>
-
-      <Card className="mt-10 w-full text-right">
-        <h3 className="font-bold">כך מתחלקת קנייה של {formatILS(300)} בקמפיין לדוגמה (20%)</h3>
-        <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          <div className="rounded-xl bg-emerald-400/10 p-3">
-            <div className="text-xs text-slate-400">הנחה לקונה (10%)</div>
-            <div className="text-lg font-extrabold text-emerald-300">{formatILS(split.buyerDiscount)}</div>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/login" className={`${btnPrimary} px-6 py-3 text-base`}>
+              מתחילים בחינם
+            </Link>
+            <Link href="/simulate" className={`${btnStamp} px-6 py-3 text-base`}>
+              לנסות קנייה עם קוד
+            </Link>
           </div>
-          <div className="rounded-xl bg-indigo-400/10 p-3">
-            <div className="text-xs text-slate-400">עמלת משפיען (7%)</div>
-            <div className="text-lg font-extrabold text-indigo-300">{formatILS(split.influencerCommission)}</div>
-          </div>
-          <div className="rounded-xl bg-white/5 p-3">
-            <div className="text-xs text-slate-400">דמי פלטפורמה (3%)</div>
-            <div className="text-lg font-extrabold">{formatILS(split.platformFee)}</div>
-          </div>
-          <div className="rounded-xl border border-white/10 p-3">
-            <div className="text-xs text-slate-400">נשאר לעסק</div>
-            <div className="text-lg font-extrabold">{formatILS(300 - split.businessTotalCost)}</div>
-          </div>
+          <p className="mt-4 text-sm text-mut">בלי כרטיס אשראי · בלי עלות התקנה · תשלום רק על מכירה</p>
         </div>
-        <p className="mt-4 text-sm font-light text-slate-400">
-          💡 משפיענים מצטיינים מטפסים מדרגה (כסף, זהב) ומקבלים בונוס עמלה — <b>על חשבון
-          דמי הפלטפורמה שלנו, לא על חשבון העסק</b>. העלות לעסק תמיד קבועה וידועה מראש.
-        </p>
-      </Card>
+
+        {/* תווית הפיצול — ההדגמה של המנגנון */}
+        <div className="relative mx-auto w-full max-w-md">
+          <div className="split-label label-card relative p-0">
+            <div className="tape absolute -top-3 right-10 h-7 w-24 -rotate-3" aria-hidden="true" />
+            <div className="flex items-center justify-between gap-3 border-b-2 border-dashed border-ink/30 px-5 py-3">
+              <div>
+                <div className="text-[11px] font-semibold text-mut">קמפיין לדוגמה</div>
+                <div className="text-sm font-bold">story layers · הדפסות תלת-ממד</div>
+              </div>
+              <div className="w-24 text-ink">
+                <Barcode seed="NOA4K2PG" height={22} />
+                <div className="mt-0.5 text-center font-mono text-[11px] font-semibold tracking-widest" dir="ltr">
+                  NOA4-K2PG
+                </div>
+              </div>
+            </div>
+            <dl className="tabular px-5 py-4 text-sm">
+              <div className="flex items-baseline justify-between py-1.5">
+                <dt className="text-mut">סכום הקנייה</dt>
+                <dd className="font-mono font-semibold" dir="ltr">{formatILS(EXAMPLE_ORDER)}</dd>
+              </div>
+              <div className="flex items-baseline justify-between py-1.5">
+                <dt>
+                  הנחה לקונה <span className="text-mut">(10%)</span>
+                </dt>
+                <dd className="font-mono font-semibold" dir="ltr">{formatILS(-split.buyerDiscount)}</dd>
+              </div>
+              <div className="flex items-baseline justify-between py-1.5">
+                <dt>
+                  עמלה למשפיענית <span className="text-mut">(7%)</span>
+                </dt>
+                <dd className="font-mono font-bold text-deal-deep" dir="ltr">{formatILS(split.influencerCommission)}</dd>
+              </div>
+              <div className="flex items-baseline justify-between py-1.5">
+                <dt>
+                  דמי פלטפורמה <span className="text-mut">(3%)</span>
+                </dt>
+                <dd className="font-mono font-semibold" dir="ltr">{formatILS(split.platformFee)}</dd>
+              </div>
+            </dl>
+            <div className="perforation mx-5" aria-hidden="true" />
+            <div className="flex items-baseline justify-between px-5 py-4">
+              <span className="font-bold">העסק שילם {formatILS(split.businessTotalCost)}</span>
+              <span className="text-sm text-mut">רק כי המכירה קרתה</span>
+            </div>
+          </div>
+          <p className="mt-3 text-center text-xs text-mut">
+            נתוני הדגמה — כך נראית כל מכירה במערכת, שקופה לשלושת הצדדים
+          </p>
+        </div>
+      </section>
+
+      {/* איך זה עובד — מנשר אריזה אחד, לא גריד כרטיסים */}
+      <section className="mt-14">
+        <h2 className="font-display text-5xl leading-none">איך זה עובד</h2>
+        <div className="label-card mt-5 divide-y divide-dashed divide-ink/25">
+          {steps.map((s) => (
+            <div key={s.n} className="flex items-start gap-4 p-5 sm:gap-6">
+              <span className="tabular flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink pt-1 font-display text-2xl leading-none text-label">
+                {s.n}
+              </span>
+              <div className="grow">
+                <h3 className="text-lg font-bold">{s.title}</h3>
+                <p className="mt-1 max-w-xl text-sm font-light leading-relaxed text-mut">{s.text}</p>
+              </div>
+              <s.icon className="mt-1 hidden h-7 w-7 shrink-0 text-deal-deep sm:block" />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* מדרגות — הבונוס על חשבוננו */}
+      <section className="mt-14 grid items-center gap-8 lg:grid-cols-[1fr_1.1fr]">
+        <div>
+          <h2 className="font-display text-5xl leading-none">
+            משפיענים מצטיינים מטפסים —<br />
+            <span className="mark-hl">על החשבון שלנו</span>
+          </h2>
+          <p className="mt-4 max-w-md text-base font-light leading-relaxed text-mut">
+            ככל שמביאים יותר מכירות בחודש, העמלה עולה. הבונוס יורד מדמי הפלטפורמה שלנו —
+            לא מהעסק. העלות לעסק נשארת קבועה וידועה מראש, תמיד.
+          </p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-5">
+          {tiers.map((t, i) => (
+            <div
+              key={t.label}
+              className="label-card flex h-40 w-40 flex-col items-center justify-center rounded-full text-center"
+              style={{ borderColor: t.ring, borderWidth: 3, rotate: `${[-3, 2, -2][i]}deg` }}
+            >
+              <div className="font-display text-4xl leading-none">{t.label}</div>
+              <div className="mt-1 text-sm font-bold text-deal-deep">{t.bonus}</div>
+              <div className="mt-1 px-3 text-xs text-mut">{t.sub}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* סגירה — פס כתום מחויב */}
+      <section className="mt-16 overflow-hidden rounded-xl bg-deal">
+        <div className="flex items-center gap-2 border-b-2 border-dashed border-ink/40 px-6 py-2 text-ink/80">
+          <ScissorsIcon className="h-4 w-4" />
+          <span className="text-xs font-semibold">גזרו כאן</span>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-6 px-6 py-10 sm:px-10">
+          <div>
+            <h2 className="font-display text-6xl leading-none text-ink">
+              מדביקים את המדבקה הראשונה?
+            </h2>
+            <p className="mt-2 max-w-md text-sm font-medium text-ink/80">
+              פתיחת עסק או חשבון משפיען לוקחת דקה. אפשר גם רק לשחק בסימולטור ולראות
+              איך הכסף מתחלק.
+            </p>
+          </div>
+          <Link
+            href="/login"
+            className="rounded-lg bg-ink px-8 py-4 text-lg font-bold text-label transition hover:bg-ink/85"
+          >
+            פותחים חשבון
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

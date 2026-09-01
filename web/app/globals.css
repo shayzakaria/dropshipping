@@ -1,23 +1,125 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0b1020;
-  --foreground: #eef1f8;
+/* BOOST — עולם "מדבקת המחיר": קרטון קראפט, תוויות משלוח, מדבקות מחיר */
+
+@theme {
+  --color-kraft: #e9dcc1; /* קרטון */
+  --color-paper: #f4eddc; /* נייר אריזה בהיר — רקע אפליקציה */
+  --color-label: #fffef8; /* תווית לבנה */
+  --color-ink: #221d15; /* דיו חותמת */
+  --color-mut: #5d5040; /* טקסט משני — חום־דיו, לא אפור */
+  --color-tape: #d9c69c; /* נייר דבק */
+  --color-deal: #f4490b; /* כתום מדבקת מבצע */
+  --color-deal-deep: #c93a06;
+  --color-mark: #ffc93c; /* צהוב מרקר */
+  --color-ok: #1e6e38;
+  --color-okbg: #e3efe2;
+  --color-err: #b3301c;
+  --color-errbg: #f7e4dd;
+
+  --font-display: "Karantina", "Rubik", sans-serif;
+  --font-sans: "Rubik", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Courier New", monospace;
 }
 
 body {
-  background:
-    radial-gradient(1200px 800px at 80% -10%, #1e2a5a 0%, var(--background) 55%),
-    radial-gradient(900px 600px at 10% 110%, #143430 0%, transparent 60%),
-    var(--background);
-  color: var(--foreground);
-  font-family: "Heebo", system-ui, -apple-system, sans-serif;
+  background-color: var(--color-kraft);
+  /* מרקם קרטון עדין — פסי גלי אנכיים */
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(34, 29, 21, 0.025) 0px,
+    rgba(34, 29, 21, 0.025) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  color: var(--color-ink);
+  font-family: var(--font-sans);
   min-height: 100vh;
+  caret-color: var(--color-deal);
+  accent-color: var(--color-deal);
 }
 
-.grad-text {
-  background: linear-gradient(90deg, #6ee7b7, #818cf8);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+::selection {
+  background: var(--color-mark);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-deal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-tape) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-tape);
+  border-radius: 999px;
+  border: 2px solid var(--color-kraft);
+}
+
+/* תווית: הקונטיינר הבסיסי של העולם */
+.label-card {
+  background: var(--color-label);
+  border: 1px solid rgba(34, 29, 21, 0.22);
+  border-radius: 10px;
+  box-shadow:
+    0 1px 2px rgba(34, 29, 21, 0.09),
+    0 5px 14px rgba(34, 29, 21, 0.07);
+}
+
+/* קו ניקוב — גבול גזירה מקווקו */
+.perforation {
+  border-top: 2px dashed rgba(34, 29, 21, 0.28);
+}
+
+/* הדגשת מרקר צהוב על טקסט */
+.mark-hl {
+  background: linear-gradient(
+    180deg,
+    transparent 8%,
+    var(--color-mark) 8%,
+    var(--color-mark) 88%,
+    transparent 88%
+  );
+  padding-inline: 0.08em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* פס נייר דבק */
+.tape {
+  background: color-mix(in srgb, var(--color-tape) 78%, transparent);
+  border-inline: 1px solid rgba(34, 29, 21, 0.12);
+  box-shadow: 0 1px 3px rgba(34, 29, 21, 0.12);
+}
+
+/* הרגע המונפש היחיד: התווית "נדבקת" למקומה */
+@keyframes settle {
+  from {
+    transform: rotate(-4.5deg) translateY(-14px);
+  }
+  to {
+    transform: rotate(-1.5deg) translateY(0);
+  }
+}
+.split-label {
+  transform: rotate(-1.5deg);
+  animation: settle 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .split-label {
+    animation: none;
+  }
+}
+
+/* מספרים טבלאיים בכל נתון כספי */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }

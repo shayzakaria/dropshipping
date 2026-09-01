@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Badge, Card, SectionTitle, Stat, btnGhost, btnPrimary } from "@/components/ui";
+import { Barcode } from "@/components/Barcode";
 import { CopyButton } from "@/components/CopyButton";
 import { getCurrentUser } from "@/lib/auth";
 import { nextTier, tierForMonthlySales } from "@/lib/domain/logic";
@@ -27,7 +28,7 @@ export default async function DashboardPage() {
 async function BusinessDashboard({ user, store }: { user: User; store: DataStore }) {
   const business = await store.getBusinessByOwner(user.id);
   if (!business) {
-    return <p className="text-slate-400">לא נמצא עסק למשתמש הזה.</p>;
+    return <p className="text-mut">לא נמצא עסק למשתמש הזה.</p>;
   }
   const campaigns = await store.listCampaignsByBusiness(business.id);
   const redemptions = await store.listRedemptionsByBusiness(business.id);
@@ -38,10 +39,10 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold">{business.name}</h1>
-          <p className="text-sm text-slate-400">דשבורד עסק · החודש הנוכחי</p>
+          <h1 className="font-display text-6xl leading-none">{business.name}</h1>
+          <p className="mt-1 text-sm text-mut">דשבורד עסק · החודש הנוכחי</p>
         </div>
         <Link href="/campaigns/new" className={btnPrimary}>
           + קמפיין חדש
@@ -62,30 +63,30 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
       <SectionTitle>הקמפיינים שלי</SectionTitle>
       <div className="grid gap-3 sm:grid-cols-2">
         {campaigns.length === 0 && (
-          <p className="text-sm text-slate-400">עוד אין קמפיינים — צרו את הראשון כדי שמשפיענים יוכלו להצטרף.</p>
+          <p className="text-sm text-mut">עוד אין קמפיינים — צרו את הראשון כדי שמשפיענים יוכלו להצטרף.</p>
         )}
         {campaigns.map((c) => (
           <Card key={c.id}>
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="font-bold">{c.title}</h3>
-                {c.description ? <p className="mt-0.5 text-xs font-light text-slate-400">{c.description}</p> : null}
+                <h3 className="text-lg font-bold">{c.title}</h3>
+                {c.description ? <p className="mt-0.5 text-xs font-light text-mut">{c.description}</p> : null}
               </div>
               <Badge tone={c.status === "active" ? "success" : "warning"}>
                 {c.status === "active" ? "פעיל" : "מושהה"}
               </Badge>
             </div>
-            <p className="mt-3 text-sm text-slate-300">
+            <p className="mt-3 text-sm">
               הנחה {c.buyerDiscountPct}% · עמלה {c.influencerPct}% · פלטפורמה {c.platformPct}%
             </p>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-mut">
               {c.newCustomersOnly ? "ללקוחות חדשים בלבד" : "פתוח לכל הלקוחות"}
               {c.maxRedemptionsPerMonth ? ` · תקרה ${c.maxRedemptionsPerMonth} מימושים/חודש` : ""}
               {" · "}
               {codesByCampaign.get(c.id)?.length ?? 0} משפיענים הצטרפו
             </p>
             <form action={toggleCampaign.bind(null, c.id)} className="mt-3">
-              <button className={btnGhost}>{c.status === "active" ? "השהה קמפיין" : "הפעל מחדש"}</button>
+              <button className={btnGhost}>{c.status === "active" ? "השהיית קמפיין" : "הפעלה מחדש"}</button>
             </form>
           </Card>
         ))}
@@ -96,18 +97,18 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
 
       <SectionTitle>חיבור לחנות שלך</SectionTitle>
       <Card>
-        <p className="text-sm font-light leading-relaxed text-slate-300">
+        <p className="text-sm font-light leading-relaxed">
           החנות שלך (Shopify / Wix / WooCommerce) תקרא ל-API שלנו בקופה כדי לאמת קוד ולרשום
           מכירה. זה מה שהופך את הדיווח לאוטומטי ואמין — בלי דיווח ידני.
         </p>
-        <div className="mt-3 flex items-center gap-2 text-sm">
-          <span className="text-slate-400">מפתח ה-API של העסק:</span>
-          <code className="rounded bg-black/40 px-2 py-1 text-xs text-emerald-300" dir="ltr">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-mut">מפתח ה-API של העסק:</span>
+          <code className="rounded-md bg-paper px-2 py-1 font-mono text-xs font-semibold" dir="ltr">
             {business.apiSecret}
           </code>
           <CopyButton text={business.apiSecret} />
         </div>
-        <pre className="mt-3 overflow-x-auto rounded-xl bg-black/40 p-3 text-xs leading-relaxed text-slate-300" dir="ltr">
+        <pre className="mt-3 overflow-x-auto rounded-lg bg-ink p-4 font-mono text-xs leading-relaxed text-label" dir="ltr">
 {`POST /api/redeem
 {
   "code": "XXXX-XXXX",
@@ -116,8 +117,8 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
   "api_secret": "<המפתח שלך>"
 }`}
         </pre>
-        <p className="mt-2 text-xs text-slate-400">
-          אפשר לנסות בלי אינטגרציה דרך <Link href="/simulate" className="text-emerald-300 underline">סימולטור הקנייה</Link>.
+        <p className="mt-2 text-xs text-mut">
+          אפשר לנסות בלי אינטגרציה דרך <Link href="/simulate" className="font-semibold text-deal-deep underline underline-offset-2">סימולטור הקנייה</Link>.
         </p>
       </Card>
     </div>
@@ -144,13 +145,13 @@ async function InfluencerDashboard({ user, store }: { user: User; store: DataSto
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold">שלום, {user.name} 👋</h1>
-          <p className="text-sm text-slate-400">דשבורד משפיען · החודש הנוכחי</p>
+          <h1 className="font-display text-6xl leading-none">שלום, {user.name}</h1>
+          <p className="mt-1 text-sm text-mut">דשבורד משפיען · החודש הנוכחי</p>
         </div>
         <Link href="/campaigns" className={btnPrimary}>
-          מצאו קמפיין חדש
+          למצוא קמפיין חדש
         </Link>
       </div>
 
@@ -160,10 +161,10 @@ async function InfluencerDashboard({ user, store }: { user: User; store: DataSto
         <Stat label='סה"כ עמלות' value={formatILS(stats.totalEarnings)} sub={`${stats.totalCount} מכירות בסך הכול`} />
         <Stat
           label="המדרגה שלי"
-          value={`${tier.label} ${tier.bonusPct ? `(+${tier.bonusPct}%)` : ""}`}
+          value={tier.label}
           sub={
             next
-              ? `עוד ${next.minMonthlySales - stats.monthCount} מכירות למדרגת ${next.label} (+${next.bonusPct}%)`
+              ? `עוד ${next.minMonthlySales - stats.monthCount} מכירות למדרגת ${next.label} (+${next.bonusPct}% עמלה)`
               : "המדרגה הגבוהה ביותר — כל הכבוד!"
           }
         />
@@ -172,31 +173,36 @@ async function InfluencerDashboard({ user, store }: { user: User; store: DataSto
       <SectionTitle>הקודים שלי</SectionTitle>
       <div className="grid gap-3 sm:grid-cols-2">
         {codes.length === 0 && (
-          <p className="text-sm text-slate-400">
-            עוד אין לך קודים — <Link href="/campaigns" className="text-emerald-300 underline">הצטרפו לקמפיין</Link> כדי לקבל אחד.
+          <p className="text-sm text-mut">
+            עוד אין לך קודים — <Link href="/campaigns" className="font-semibold text-deal-deep underline underline-offset-2">הצטרפו לקמפיין</Link> כדי לקבל אחד.
           </p>
         )}
         {codes.map((code) => {
           const campaign = campaignById.get(code.campaignId);
           return (
-            <Card key={code.id}>
-              <div className="flex items-center justify-between gap-2">
-                <code className="text-lg font-extrabold tracking-widest text-emerald-300" dir="ltr">
+            <Card key={code.id} className="!p-0">
+              <div className="flex items-center justify-between gap-3 border-b-2 border-dashed border-ink/25 px-5 py-3">
+                <code className="font-mono text-lg font-bold tracking-widest" dir="ltr">
                   {code.code}
                 </code>
                 <CopyButton text={code.code} />
               </div>
-              {campaign ? (
-                <>
-                  <p className="mt-2 text-sm text-slate-300">
-                    {campaign.title} · {businessNameByCampaign.get(campaign.id)}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    הקונה מקבל {campaign.buyerDiscountPct}% הנחה · את/ה מרוויח/ה{" "}
-                    {campaign.influencerPct + tier.bonusPct}% מכל קנייה
-                  </p>
-                </>
-              ) : null}
+              <div className="px-5 py-3">
+                <div className="w-28 text-ink/80">
+                  <Barcode seed={code.code} height={16} />
+                </div>
+                {campaign ? (
+                  <>
+                    <p className="mt-2 text-sm font-semibold">
+                      {campaign.title} · <span className="font-normal text-mut">{businessNameByCampaign.get(campaign.id)}</span>
+                    </p>
+                    <p className="mt-1 text-xs text-mut">
+                      הקונה מקבל {campaign.buyerDiscountPct}% הנחה · את/ה מרוויח/ה{" "}
+                      <span className="font-bold text-deal-deep">{campaign.influencerPct + tier.bonusPct}%</span> מכל קנייה
+                    </p>
+                  </>
+                ) : null}
+              </div>
             </Card>
           );
         })}
@@ -227,37 +233,41 @@ function RedemptionsTable({
   perspective: "business" | "influencer";
 }) {
   if (redemptions.length === 0) {
-    return <p className="text-sm text-slate-400">אין עדיין מכירות. אפשר לייצר אחת בסימולטור.</p>;
+    return <p className="text-sm text-mut">אין עדיין מכירות. אפשר לייצר אחת בסימולטור.</p>;
   }
   return (
     <Card className="overflow-x-auto !p-0">
-      <table className="w-full min-w-[560px] text-sm">
+      <table className="tabular w-full min-w-[560px] text-sm">
         <thead>
-          <tr className="border-b border-white/10 text-right text-xs text-slate-400">
-            <th className="px-4 py-3 font-medium">מתי</th>
-            {perspective === "business" ? <th className="px-4 py-3 font-medium">משפיען</th> : null}
-            <th className="px-4 py-3 font-medium">סכום קנייה</th>
-            <th className="px-4 py-3 font-medium">הנחה לקונה</th>
-            <th className="px-4 py-3 font-medium">עמלת משפיען</th>
-            {perspective === "business" ? <th className="px-4 py-3 font-medium">דמי פלטפורמה</th> : null}
-            <th className="px-4 py-3 font-medium">מדרגה</th>
+          <tr className="border-b-2 border-dashed border-ink/30 text-right text-xs text-mut">
+            <th className="px-4 py-3 font-semibold">מתי</th>
+            {perspective === "business" ? <th className="px-4 py-3 font-semibold">משפיען</th> : null}
+            <th className="px-4 py-3 font-semibold">סכום קנייה</th>
+            <th className="px-4 py-3 font-semibold">הנחה לקונה</th>
+            <th className="px-4 py-3 font-semibold">עמלת משפיען</th>
+            {perspective === "business" ? <th className="px-4 py-3 font-semibold">דמי פלטפורמה</th> : null}
+            <th className="px-4 py-3 font-semibold">מדרגה</th>
           </tr>
         </thead>
         <tbody>
           {redemptions.map((r) => (
-            <tr key={r.id} className="border-b border-white/5 last:border-0">
-              <td className="px-4 py-2.5 text-slate-400">{formatDate(r.createdAt)}</td>
+            <tr key={r.id} className="border-b border-ink/10 last:border-0">
+              <td className="px-4 py-2.5 text-mut">{formatDate(r.createdAt)}</td>
               {perspective === "business" ? (
-                <td className="px-4 py-2.5">{names.get(r.influencerId) ?? "—"}</td>
+                <td className="px-4 py-2.5 font-medium">{names.get(r.influencerId) ?? "—"}</td>
               ) : null}
-              <td className="px-4 py-2.5 font-semibold">{formatILS(r.orderAmount)}</td>
-              <td className="px-4 py-2.5 text-emerald-300">{formatILS(r.buyerDiscount)}</td>
-              <td className="px-4 py-2.5 text-indigo-300">
+              <td className="px-4 py-2.5 font-mono font-semibold" dir="ltr">{formatILS(r.orderAmount)}</td>
+              <td className="px-4 py-2.5 font-mono" dir="ltr">{formatILS(-r.buyerDiscount)}</td>
+              <td className="px-4 py-2.5 font-mono font-semibold text-deal-deep" dir="ltr">
                 {formatILS(r.influencerCommission)}
-                {r.tierBonusPct > 0 ? <span className="text-xs text-slate-400"> (כולל בונוס)</span> : null}
               </td>
-              {perspective === "business" ? <td className="px-4 py-2.5">{formatILS(r.platformFee)}</td> : null}
-              <td className="px-4 py-2.5 text-xs text-slate-400">{r.tier}</td>
+              {perspective === "business" ? (
+                <td className="px-4 py-2.5 font-mono" dir="ltr">{formatILS(r.platformFee)}</td>
+              ) : null}
+              <td className="px-4 py-2.5 text-xs text-mut">
+                {r.tier === "GOLD" ? "זהב" : r.tier === "SILVER" ? "כסף" : "ברונזה"}
+                {r.tierBonusPct > 0 ? ` (+${r.tierBonusPct}%)` : ""}
+              </td>
             </tr>
           ))}
         </tbody>
