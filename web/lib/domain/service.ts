@@ -7,13 +7,17 @@ import {
   normalizeCode,
   tierForMonthlySales,
 } from "./logic";
+import { hashCustomerRef } from "./privacy";
 import type { Redemption, RedemptionSource } from "./types";
 
 export interface RedeemInput {
   code: string;
   orderAmount: number;
   source: RedemptionSource;
-  /** Buyer identifier (email/phone) reported by the store — used for fraud & new-customer checks */
+  /**
+   * Buyer identifier (email/phone) reported by the store. Used for the fraud
+   * and new-customer checks, then fingerprinted — it is never stored as given.
+   */
   customerRef?: string;
   /** Required when source === "api": must match the business's apiSecret */
   apiSecret?: string;
@@ -87,19 +91,33 @@ export async function redeemCode(store: DataStore, input: RedeemInput): Promise<
     if (already) return already;
   }
 
-  const customerRef = input.customerRef?.trim().toLowerCase() || undefined;
+  // The buyer's identifier is fingerprinted the moment it arrives and the raw
+  // value is never stored. Both guards below are equality checks, which work
+  // just as well on the fingerprint.
+  const customerHash = hashCustomerRef(input.customerRef);
+
+  // Both fraud guards depend on knowing who the buyer is. A campaign that asks
+  // for new customers only and gets no identifier used to pass silently — the
+  // guard the business switched on simply did not run. Now the call is
+  // rejected, so a missing identifier is an integration bug the store sees.
+  if (campaign.newCustomersOnly && !customerHash) {
+    throw new DomainError(
+      "CUSTOMER_REF_REQUIRED",
+      "הקמפיין מוגבל ללקוחות חדשים, ולכן החנות חייבת לשלוח מזהה קונה (customer_ref)",
+    );
+  }
 
   // Fraud guard: an influencer redeeming their own code earns commission on
   // their own purchase — blocked outright.
   const influencer = await store.getUser(code.influencerId);
-  if (customerRef && influencer && customerRef === influencer.email) {
+  if (customerHash && influencer && customerHash === hashCustomerRef(influencer.email)) {
     throw new DomainError("SELF_REDEMPTION", "משפיען לא יכול לממש את הקוד של עצמו");
   }
 
   // Cannibalization guard: by default coupons only apply to customers who are
-  // new to this business. Only enforceable when the store reports a customerRef.
-  if (campaign.newCustomersOnly && customerRef) {
-    if (await store.hasCustomerBoughtBefore(campaign.businessId, customerRef)) {
+  // new to this business.
+  if (campaign.newCustomersOnly && customerHash) {
+    if (await store.hasCustomerBoughtBefore(campaign.businessId, customerHash)) {
       throw new DomainError("NOT_NEW_CUSTOMER", "הקופון תקף ללקוחות חדשים של העסק בלבד");
     }
   }
@@ -128,7 +146,7 @@ export async function redeemCode(store: DataStore, input: RedeemInput): Promise<
     platformFee: split.platformFee,
     tier: tier.name,
     tierBonusPct: tier.bonusPct,
-    customerRef,
+    customerHash,
     externalOrderId,
     status: "held",
     holdUntil: holdUntilFor(now),

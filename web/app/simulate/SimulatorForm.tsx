@@ -35,7 +35,10 @@ export function SimulatorForm({ demoCode }: { demoCode?: string }) {
         </label>
         <label className="block text-sm">
           <span className="font-medium">אימייל הקונה (לבדיקת לקוח חדש והגנה מהונאות)</span>
-          <input name="customerRef" type="email" placeholder="buyer@example.com" className={`${inputCls} mt-1`} dir="ltr" />
+          <input name="customerRef" type="email" placeholder="buyer@example.com" className={`${inputCls} mt-1`} dir="ltr" required />
+          <span className="mt-1 block text-xs font-light text-mut">
+            לא נשמר אצלנו — רק טביעת אצבע מוצפנת שלו, לבדיקה אם הקונה כבר קנה בעסק.
+          </span>
         </label>
         <button type="submit" disabled={pending} className={btnPrimaryWide}>
           {pending ? "מחשב…" : "ביצוע קנייה עם הקוד"}

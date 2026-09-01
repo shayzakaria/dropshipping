@@ -191,10 +191,9 @@ export class MemoryStore implements DataStore {
     ).length;
   }
 
-  async hasCustomerBoughtBefore(businessId: string, customerRef: string): Promise<boolean> {
-    const needle = customerRef.trim().toLowerCase();
+  async hasCustomerBoughtBefore(businessId: string, customerHash: string): Promise<boolean> {
     for (const r of this.redemptions.values()) {
-      if (r.businessId === businessId && r.customerRef?.trim().toLowerCase() === needle) return true;
+      if (r.businessId === businessId && r.customerHash === customerHash) return true;
     }
     return false;
   }

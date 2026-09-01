@@ -70,7 +70,7 @@ type RedemptionRow = {
   platform_fee: number | string;
   tier: TierName;
   tier_bonus_pct: number | string;
-  customer_ref: string | null;
+  customer_hash: string | null;
   external_order_id: string | null;
   status: RedemptionStatus;
   hold_until: string;
@@ -131,7 +131,7 @@ const toRedemption = (r: RedemptionRow): Redemption => ({
   platformFee: num(r.platform_fee),
   tier: r.tier,
   tierBonusPct: num(r.tier_bonus_pct),
-  customerRef: r.customer_ref ?? undefined,
+  customerHash: r.customer_hash ?? undefined,
   externalOrderId: r.external_order_id ?? undefined,
   status: r.status,
   holdUntil: r.hold_until,
@@ -415,7 +415,7 @@ export class SupabaseStore implements DataStore {
         platform_fee: input.platformFee,
         tier: input.tier,
         tier_bonus_pct: input.tierBonusPct,
-        customer_ref: input.customerRef ?? null,
+        customer_hash: input.customerHash ?? null,
         external_order_id: input.externalOrderId ?? null,
         status: input.status,
         hold_until: input.holdUntil,
@@ -502,14 +502,13 @@ export class SupabaseStore implements DataStore {
     );
   }
 
-  async hasCustomerBoughtBefore(businessId: string, customerRef: string): Promise<boolean> {
+  async hasCustomerBoughtBefore(businessId: string, customerHash: string): Promise<boolean> {
     const n = await this.count(
       this.db
         .from("redemptions")
         .select("*", { count: "exact", head: true })
         .eq("business_id", businessId)
-        // customer_ref is always written lowercased by the redeem service
-        .eq("customer_ref", customerRef.trim().toLowerCase()),
+        .eq("customer_hash", customerHash),
     );
     return n > 0;
   }

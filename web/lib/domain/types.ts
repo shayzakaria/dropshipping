@@ -80,8 +80,11 @@ export interface Redemption {
   platformFee: number;
   tier: TierName;
   tierBonusPct: number;
-  /** Buyer identifier (email/phone) as reported by the store, used for fraud & new-customer checks */
-  customerRef?: string;
+  /**
+   * Fingerprint of the buyer identifier the store reported — never the value
+   * itself. Used only for the equality checks in `lib/domain/privacy.ts`.
+   */
+  customerHash?: string;
   /** The store's own order id. Makes a retried checkout call idempotent. */
   externalOrderId?: string;
   status: RedemptionStatus;

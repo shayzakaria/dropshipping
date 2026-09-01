@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DomainError } from "@/lib/domain/logic";
+import { hashCustomerRef } from "@/lib/domain/privacy";
 import { cancelRedemption, redeemCode } from "@/lib/domain/service";
 import { businessStats, influencerStats, walletStats } from "@/lib/domain/stats";
 import { MemoryStore } from "@/lib/store/memory";
@@ -49,13 +50,19 @@ describe("redeemCode — happy path", () => {
       orderAmount: 100,
       source: "api",
       apiSecret: business.apiSecret,
+      customerRef: "buyer@x.com",
     });
     expect(r.orderAmount).toBe(100);
   });
 
   it("does not require an api secret for the simulator source", async () => {
     const { store, code } = await world();
-    const r = await redeemCode(store, { code: code.code, orderAmount: 50, source: "simulator" });
+    const r = await redeemCode(store, {
+      code: code.code,
+      orderAmount: 50,
+      source: "simulator",
+      customerRef: "buyer@x.com",
+    });
     expect(r.source).toBe("simulator");
   });
 });
@@ -200,8 +207,8 @@ describe("MemoryStore specifics", () => {
       apiSecret: business.apiSecret,
       customerRef: "Someone@X.com",
     });
-    expect(await store.hasCustomerBoughtBefore(business.id, "someone@x.com")).toBe(true);
-    expect(await store.hasCustomerBoughtBefore(business.id, "other@x.com")).toBe(false);
+    expect(await store.hasCustomerBoughtBefore(business.id, hashCustomerRef("someone@x.com")!)).toBe(true);
+    expect(await store.hasCustomerBoughtBefore(business.id, hashCustomerRef("other@x.com")!)).toBe(false);
   });
 });
 
@@ -397,6 +404,7 @@ describe("redeemCode — the endpoint is not an oracle", () => {
       code: code.code,
       orderAmount: 1,
       source: "simulator",
+      customerRef: "buyer@x.com",
     }).catch(() => null);
     expect(real).toBeTruthy(); // the code is genuinely valid
 
@@ -496,5 +504,105 @@ describe("profiles and authenticated identities", () => {
     await expect(
       store.createUser({ name: "ב", email: "SAME@x.co", role: "influencer", authUserId: "b" }),
     ).rejects.toThrow("EMAIL_TAKEN");
+  });
+});
+
+describe("the buyer's identity is a fingerprint, never a value", () => {
+  it("stores a hash instead of the email the store sent", async () => {
+    const { store, business, code } = await world();
+    const r = await redeemCode(store, {
+      code: code.code,
+      orderAmount: 100,
+      source: "api",
+      apiSecret: business.apiSecret,
+      customerRef: "Buyer@Example.COM",
+    });
+    expect(r.customerHash).toBe(hashCustomerRef("buyer@example.com"));
+    // Nothing anywhere on the record spells the address out
+    expect(JSON.stringify(r).toLowerCase()).not.toContain("buyer@example.com");
+  });
+
+  it("fingerprints the same address identically however it is written", () => {
+    expect(hashCustomerRef("  Someone@X.com ")).toBe(hashCustomerRef("someone@x.com"));
+    expect(hashCustomerRef("someone@x.com")).not.toBe(hashCustomerRef("other@x.com"));
+  });
+
+  it("treats an empty identifier as absent, not as a hashable value", () => {
+    expect(hashCustomerRef(undefined)).toBeUndefined();
+    expect(hashCustomerRef("   ")).toBeUndefined();
+  });
+
+  it("still catches an influencer buying through their own code", async () => {
+    const { store, business, code } = await world();
+    await expect(
+      redeemCode(store, {
+        code: code.code,
+        orderAmount: 100,
+        source: "api",
+        apiSecret: business.apiSecret,
+        customerRef: "INF@test.co",
+      }),
+    ).rejects.toMatchObject({ code: "SELF_REDEMPTION" });
+  });
+
+  it("still catches a returning buyer of the same business", async () => {
+    const { store, business, code } = await world();
+    const buy = () =>
+      redeemCode(store, {
+        code: code.code,
+        orderAmount: 100,
+        source: "api",
+        apiSecret: business.apiSecret,
+        customerRef: "again@x.com",
+      });
+    await buy();
+    await expect(buy()).rejects.toMatchObject({ code: "NOT_NEW_CUSTOMER" });
+  });
+});
+
+describe("a new-customers-only campaign cannot run blind", () => {
+  it("rejects a redemption with no buyer identifier", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: true });
+    await expect(
+      redeemCode(store, {
+        code: code.code,
+        orderAmount: 100,
+        source: "api",
+        apiSecret: business.apiSecret,
+      }),
+    ).rejects.toMatchObject({ code: "CUSTOMER_REF_REQUIRED" });
+  });
+
+  it("rejects a blank buyer identifier too — whitespace is not an identity", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: true });
+    await expect(
+      redeemCode(store, {
+        code: code.code,
+        orderAmount: 100,
+        source: "api",
+        apiSecret: business.apiSecret,
+        customerRef: "   ",
+      }),
+    ).rejects.toMatchObject({ code: "CUSTOMER_REF_REQUIRED" });
+  });
+
+  it("leaves a campaign open to everyone alone", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: false });
+    const r = await redeemCode(store, {
+      code: code.code,
+      orderAmount: 100,
+      source: "api",
+      apiSecret: business.apiSecret,
+    });
+    expect(r.customerHash).toBeUndefined();
+  });
+
+  it("does not let the rejection leak whether the code is real", async () => {
+    // The identifier check runs after the code and secret checks, so an
+    // unauthenticated caller never reaches it.
+    const { store, code } = await world({ newCustomersOnly: true });
+    await expect(
+      redeemCode(store, { code: code.code, orderAmount: 100, source: "api", apiSecret: "nope" }),
+    ).rejects.toMatchObject({ code: "BAD_SECRET" });
   });
 });

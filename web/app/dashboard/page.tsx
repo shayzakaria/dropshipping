@@ -133,6 +133,11 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
           שלחו תמיד את <code className="font-mono">order_id</code> — מספר ההזמנה בחנות שלכם. כך
           שליחה חוזרת של אותה הזמנה לא תירשם פעמיים ולא תחויבו בעמלה כפולה.
         </p>
+        <p className="mt-2 text-xs leading-relaxed text-mut">
+          <code className="font-mono">customer_ref</code> — אימייל או טלפון של הקונה. אנחנו לא
+          שומרים אותו, אלא רק טביעת אצבע מוצפנת שלו, ומשתמשים בה כדי לזהות לקוח חוזר ולחסום
+          מימוש עצמי. בקמפיין שמוגבל ללקוחות חדשים השדה הזה חובה.
+        </p>
         <p className="mt-4 text-sm font-bold">כשהזמנה מתבטלת או חוזרת</p>
         <pre className="mt-2 overflow-x-auto rounded-lg bg-ink p-4 font-mono text-xs leading-relaxed text-label" dir="ltr">
 {`POST /api/refund

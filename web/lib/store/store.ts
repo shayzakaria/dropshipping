@@ -56,5 +56,5 @@ export interface DataStore {
   setRedemptionStatus(id: string, status: RedemptionStatus): Promise<void>;
   countInfluencerRedemptionsInMonth(influencerId: string, at: Date): Promise<number>;
   countCampaignRedemptionsInMonth(campaignId: string, at: Date): Promise<number>;
-  hasCustomerBoughtBefore(businessId: string, customerRef: string): Promise<boolean>;
+  hasCustomerBoughtBefore(businessId: string, customerHash: string): Promise<boolean>;
 }

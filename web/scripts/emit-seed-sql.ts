@@ -43,7 +43,7 @@ export async function emit(outPath: string): Promise<string> {
   }
   for (const r of store.redemptions.values()) {
     lines.push(
-      `insert into public.redemptions (id, code_id, campaign_id, business_id, influencer_id, order_amount, buyer_discount, influencer_commission, platform_fee, tier, tier_bonus_pct, customer_ref, source, created_at) values (${q(r.id)}, ${q(r.codeId)}, ${q(r.campaignId)}, ${q(r.businessId)}, ${q(r.influencerId)}, ${r.orderAmount}, ${r.buyerDiscount}, ${r.influencerCommission}, ${r.platformFee}, ${q(r.tier)}, ${r.tierBonusPct}, ${q(r.customerRef)}, ${q(r.source)}, ${q(r.createdAt)});`,
+      `insert into public.redemptions (id, code_id, campaign_id, business_id, influencer_id, order_amount, buyer_discount, influencer_commission, platform_fee, tier, tier_bonus_pct, customer_hash, source, created_at) values (${q(r.id)}, ${q(r.codeId)}, ${q(r.campaignId)}, ${q(r.businessId)}, ${q(r.influencerId)}, ${r.orderAmount}, ${r.buyerDiscount}, ${r.influencerCommission}, ${r.platformFee}, ${q(r.tier)}, ${r.tierBonusPct}, ${q(r.customerHash)}, ${q(r.source)}, ${q(r.createdAt)});`,
     );
   }
 
