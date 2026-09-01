@@ -6,10 +6,13 @@ import { clearSession, getCurrentUser, setSession } from "@/lib/auth";
 import { DomainError, PLATFORM_PCT, validateCampaignSplit } from "@/lib/domain/logic";
 import { cancelRedemption, redeemCode } from "@/lib/domain/service";
 import { getReadyStore, isDemoMode } from "@/lib/store";
+import { authErrorMessage, getAuthClient, isAuthConfigured } from "@/lib/supabase-auth";
 import type { Role } from "@/lib/domain/types";
 
 export interface FormState {
   error?: string;
+  /** A neutral message that is not a failure, e.g. "confirm your email" */
+  notice?: string;
   ok?: boolean;
   result?: {
     orderAmount: number;
@@ -35,10 +38,13 @@ export async function logout(): Promise<void> {
   redirect("/");
 }
 
+const MIN_PASSWORD_LENGTH = 8;
+
 export async function register(_prev: FormState, formData: FormData): Promise<FormState> {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const role = String(formData.get("role") ?? "") as Role;
+  const password = String(formData.get("password") ?? "");
   const businessName = String(formData.get("businessName") ?? "").trim();
   const storeUrl = String(formData.get("storeUrl") ?? "").trim();
 
@@ -47,9 +53,32 @@ export async function register(_prev: FormState, formData: FormData): Promise<Fo
   if (role === "business" && !businessName) return { error: "לעסק צריך שם עסק" };
 
   const store = await getReadyStore();
+  const withPassword = isAuthConfigured();
+  if (withPassword && password.length < MIN_PASSWORD_LENGTH) {
+    return { error: `הסיסמה צריכה להיות באורך ${MIN_PASSWORD_LENGTH} תווים לפחות` };
+  }
+
+  // Reject a taken email before creating an auth user, so a failed sign-up
+  // never leaves an identity with no profile behind it.
+  if (await store.getUserByEmail(email)) {
+    return { error: "האימייל הזה כבר רשום — אפשר להתחבר" };
+  }
+
+  let authUserId: string | undefined;
+  let hasSession = true;
+  if (withPassword) {
+    const supabase = await getAuthClient();
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) return { error: authErrorMessage(error.message) };
+    if (!data.user) return { error: "ההרשמה לא הושלמה. נסו שוב" };
+    authUserId = data.user.id;
+    // With email confirmation on, Supabase returns a user but no session yet
+    hasSession = Boolean(data.session);
+  }
+
   let userId: string;
   try {
-    const user = await store.createUser({ name, email, role });
+    const user = await store.createUser({ name, email, role, authUserId });
     if (role === "business") {
       await store.createBusiness({
         ownerId: user.id,
@@ -60,11 +89,28 @@ export async function register(_prev: FormState, formData: FormData): Promise<Fo
     userId = user.id;
   } catch (e) {
     if (e instanceof Error && e.message === "EMAIL_TAKEN") {
-      return { error: "האימייל הזה כבר רשום — התחברו מלמעלה" };
+      return { error: "האימייל הזה כבר רשום — אפשר להתחבר" };
     }
     throw e;
   }
-  await setSession(userId);
+
+  if (!withPassword) await setSession(userId);
+  if (!hasSession) {
+    return { notice: "שלחנו לכם מייל לאישור הכתובת. אחרי האישור אפשר להיכנס." };
+  }
+  redirect("/dashboard");
+}
+
+/** Sign in with email and password. Available once Supabase Auth is configured. */
+export async function signIn(_prev: FormState, formData: FormData): Promise<FormState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  if (!email.includes("@") || !password) return { error: "צריך אימייל וסיסמה" };
+  if (!isAuthConfigured()) return { error: "הכניסה עם סיסמה עוד לא זמינה" };
+
+  const supabase = await getAuthClient();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return { error: authErrorMessage(error.message) };
   redirect("/dashboard");
 }
 

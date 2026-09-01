@@ -5,7 +5,7 @@ import { register, type FormState } from "../actions";
 import { MegaphoneIcon, StoreIcon } from "@/components/icons";
 import { btnPrimaryWide, inputCls } from "@/components/ui";
 
-export function RegisterForm() {
+export function RegisterForm({ withPassword }: { withPassword: boolean }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(register, {});
   const [role, setRole] = useState<"influencer" | "business">("influencer");
 
@@ -45,14 +45,43 @@ export function RegisterForm() {
         </label>
       </div>
       <input name="name" placeholder="שם מלא" className={inputCls} required />
-      <input name="email" type="email" placeholder="אימייל" className={inputCls} required dir="ltr" />
+      <input
+        name="email"
+        type="email"
+        placeholder="אימייל"
+        autoComplete="email"
+        className={inputCls}
+        required
+        dir="ltr"
+      />
+      {withPassword && (
+        <input
+          name="password"
+          type="password"
+          placeholder="סיסמה (8 תווים לפחות)"
+          autoComplete="new-password"
+          minLength={8}
+          className={inputCls}
+          required
+          dir="ltr"
+        />
+      )}
       {role === "business" && (
         <>
           <input name="businessName" placeholder="שם העסק" className={inputCls} />
           <input name="storeUrl" placeholder="כתובת החנות (אופציונלי)" className={inputCls} dir="ltr" />
         </>
       )}
-      {state.error ? <p className="text-sm font-medium text-err">{state.error}</p> : null}
+      {state.error ? (
+        <p className="text-sm font-medium text-err" role="alert">
+          {state.error}
+        </p>
+      ) : null}
+      {state.notice ? (
+        <p className="rounded-lg border border-ok/40 bg-okbg p-3 text-sm font-medium text-ok" role="status">
+          {state.notice}
+        </p>
+      ) : null}
       <button type="submit" disabled={pending} className={btnPrimaryWide}>
         {pending ? "רגע…" : "הרשמה וכניסה"}
       </button>

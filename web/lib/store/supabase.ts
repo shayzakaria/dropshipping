@@ -26,6 +26,7 @@ type ProfileRow = {
   name: string;
   email: string;
   role: User["role"];
+  auth_user_id: string | null;
   created_at: string;
 };
 type BusinessRow = {
@@ -82,6 +83,7 @@ const toUser = (r: ProfileRow): User => ({
   name: r.name,
   email: r.email,
   role: r.role,
+  authUserId: r.auth_user_id ?? undefined,
   createdAt: r.created_at,
 });
 
@@ -188,7 +190,12 @@ export class SupabaseStore implements DataStore {
     const email = input.email.trim().toLowerCase();
     const { data, error } = await this.db
       .from("profiles")
-      .insert({ name: input.name, email, role: input.role })
+      .insert({
+        name: input.name,
+        email,
+        role: input.role,
+        auth_user_id: input.authUserId ?? null,
+      })
       .select()
       .single<ProfileRow>();
     if (error) {
@@ -212,6 +219,13 @@ export class SupabaseStore implements DataStore {
         .select()
         .eq("email", email.trim().toLowerCase())
         .maybeSingle<ProfileRow>(),
+    );
+    return r ? toUser(r) : null;
+  }
+
+  async getUserByAuthId(authUserId: string): Promise<User | null> {
+    const r = await this.one<ProfileRow>(
+      this.db.from("profiles").select().eq("auth_user_id", authUserId).maybeSingle<ProfileRow>(),
     );
     return r ? toUser(r) : null;
   }

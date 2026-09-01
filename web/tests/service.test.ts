@@ -469,3 +469,32 @@ describe("a cancelled sale stops counting everywhere", () => {
     expect(next.tier).toBe("BRONZE");
   });
 });
+
+describe("profiles and authenticated identities", () => {
+  it("links a profile to the auth user that created it", async () => {
+    const store = new MemoryStore();
+    const created = await store.createUser({
+      name: "נועה",
+      email: "noa@real.co",
+      role: "influencer",
+      authUserId: "auth-uid-1",
+    });
+    expect(created.authUserId).toBe("auth-uid-1");
+    expect((await store.getUserByAuthId("auth-uid-1"))?.id).toBe(created.id);
+  });
+
+  it("does not resolve a profile for an unknown identity", async () => {
+    const store = new MemoryStore();
+    await store.createUser({ name: "דנה", email: "dana@real.co", role: "business" });
+    // A demo profile carries no auth identity, so nothing signs in as it
+    expect(await store.getUserByAuthId("auth-uid-nobody")).toBeNull();
+  });
+
+  it("still refuses a duplicate email regardless of identity", async () => {
+    const store = new MemoryStore();
+    await store.createUser({ name: "א", email: "same@x.co", role: "influencer", authUserId: "a" });
+    await expect(
+      store.createUser({ name: "ב", email: "SAME@x.co", role: "influencer", authUserId: "b" }),
+    ).rejects.toThrow("EMAIL_TAKEN");
+  });
+});

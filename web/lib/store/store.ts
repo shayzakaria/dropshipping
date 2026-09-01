@@ -18,6 +18,7 @@ export interface DataStore {
   createUser(input: Omit<User, "id" | "createdAt">): Promise<User>;
   getUser(id: string): Promise<User | null>;
   getUserByEmail(email: string): Promise<User | null>;
+  getUserByAuthId(authUserId: string): Promise<User | null>;
   listUsers(): Promise<User[]>;
 
   // Businesses

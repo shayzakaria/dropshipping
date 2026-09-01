@@ -41,6 +41,11 @@ export class MemoryStore implements DataStore {
     return null;
   }
 
+  async getUserByAuthId(authUserId: string): Promise<User | null> {
+    for (const u of this.users.values()) if (u.authUserId === authUserId) return u;
+    return null;
+  }
+
   async listUsers(): Promise<User[]> {
     return [...this.users.values()];
   }

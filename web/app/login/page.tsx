@@ -1,14 +1,17 @@
 import { Card } from "@/components/ui";
 import { MegaphoneIcon, StoreIcon } from "@/components/icons";
 import { getReadyStore, isDemoMode } from "@/lib/store";
+import { isAuthConfigured } from "@/lib/supabase-auth";
 import { loginAs } from "../actions";
 import { RegisterForm } from "./RegisterForm";
+import { SignInForm } from "./SignInForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
   const store = await getReadyStore();
   const demo = isDemoMode();
+  const withPassword = isAuthConfigured();
   // Never list real accounts: the list is what makes passwordless sign-in work
   const users = demo ? await store.listUsers() : [];
 
@@ -19,10 +22,17 @@ export default async function LoginPage() {
           {demo ? "כניסה מהירה" : "כניסה"}
         </h1>
         <p className="mt-2 text-sm font-light text-mut">
-          {demo
-            ? "היכנסו כאחת מדמויות הדמו כדי לראות את שני הצדדים של הפלטפורמה."
-            : "כניסה עם סיסמה תיפתח בקרוב. כניסת הדמו סגורה כשמחוברים נתונים אמיתיים."}
+          {withPassword
+            ? "היכנסו עם האימייל והסיסמה שלכם."
+            : demo
+              ? "היכנסו כאחת מדמויות הדמו כדי לראות את שני הצדדים של הפלטפורמה."
+              : "כניסה עם סיסמה תיפתח בקרוב. כניסת הדמו סגורה כשמחוברים נתונים אמיתיים."}
         </p>
+        {withPassword ? (
+          <div className="mt-4">
+            <SignInForm />
+          </div>
+        ) : null}
         <div className="mt-4 space-y-2">
           {users.map((u) => (
             <form key={u.id} action={loginAs.bind(null, u.id)}>
@@ -46,10 +56,12 @@ export default async function LoginPage() {
       <Card>
         <h2 className="font-display text-4xl leading-none">הרשמה חדשה</h2>
         <p className="mt-2 text-sm font-light text-mut">
-          בדמו אין סיסמה — בגרסת הפרודקשן זה יוחלף ב-Supabase Auth.
+          {withPassword
+            ? "פתיחת חשבון לוקחת דקה. בוחרים תפקיד, ומתחילים."
+            : "בדמו אין סיסמה — בגרסת הפרודקשן זה יוחלף ב-Supabase Auth."}
         </p>
         <div className="mt-4">
-          <RegisterForm />
+          <RegisterForm withPassword={withPassword} />
         </div>
       </Card>
     </div>

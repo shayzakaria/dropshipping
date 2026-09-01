@@ -7,6 +7,11 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  /**
+   * The Supabase Auth user this profile belongs to. Absent on demo profiles,
+   * which therefore cannot sign in once demo mode is off.
+   */
+  authUserId?: string;
   createdAt: string;
 }
 
