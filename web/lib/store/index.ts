@@ -24,6 +24,29 @@ export function isPersistent(): boolean {
   return Boolean(SUPABASE_URL && SUPABASE_SECRET_KEY);
 }
 
+/**
+ * Demo mode opens two doors that must never stand open over real data: signing
+ * in as any listed user without a password, and recording a sale from the
+ * public simulator without a business's API secret.
+ *
+ * It is therefore tied to whether a real database is attached. Connect one and
+ * both doors close by default; `DEMO_MODE` can force either answer, and
+ * choosing `true` alongside a real database means accepting that anyone can
+ * sign in as anyone.
+ */
+export function isDemoMode(): boolean {
+  if (process.env.DEMO_MODE === "true") return true;
+  if (process.env.DEMO_MODE === "false") return false;
+  const demo = !isPersistent();
+  if (demo && process.env.NODE_ENV === "production") {
+    console.warn(
+      "[BOOST] Running in DEMO mode in production: no database is configured, " +
+        "so passwordless sign-in and the public simulator are enabled.",
+    );
+  }
+  return demo;
+}
+
 export function getStore(): DataStore {
   if (!globalForStore.__appStore) {
     if (SUPABASE_URL && SUPABASE_SECRET_KEY) {

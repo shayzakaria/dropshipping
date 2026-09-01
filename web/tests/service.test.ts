@@ -389,3 +389,83 @@ describe("cancelRedemption", () => {
     ).rejects.toMatchObject({ code: "REDEMPTION_NOT_FOUND" });
   });
 });
+
+describe("redeemCode — the endpoint is not an oracle", () => {
+  it("rejects an unknown key before revealing whether the code exists", async () => {
+    const { store, code } = await world();
+    const real = await redeemCode(store, {
+      code: code.code,
+      orderAmount: 1,
+      source: "simulator",
+    }).catch(() => null);
+    expect(real).toBeTruthy(); // the code is genuinely valid
+
+    // Same error for a real code and a fake one, when the key is unknown
+    for (const c of [code.code, "ZZZZ-ZZZZ"]) {
+      await expect(
+        redeemCode(store, { code: c, orderAmount: 100, source: "api", apiSecret: "not-a-key" }),
+      ).rejects.toMatchObject({ code: "BAD_SECRET" });
+    }
+  });
+
+  it("does not confirm another business's code to a valid key", async () => {
+    const a = await world({ newCustomersOnly: false });
+    const otherOwner = await a.store.createUser({
+      name: "בעל עסק אחר",
+      email: "other@test.co",
+      role: "business",
+    });
+    const otherBusiness = await a.store.createBusiness({
+      ownerId: otherOwner.id,
+      name: "עסק אחר",
+    });
+
+    await expect(
+      redeemCode(a.store, {
+        code: a.code.code,
+        orderAmount: 100,
+        source: "api",
+        apiSecret: otherBusiness.apiSecret,
+      }),
+    ).rejects.toMatchObject({ code: "CODE_NOT_FOUND" });
+  });
+
+  it("refuses an order larger than the platform cap", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: false });
+    await expect(
+      redeemCode(store, {
+        code: code.code,
+        orderAmount: 9_999_999_999,
+        source: "api",
+        apiSecret: business.apiSecret,
+      }),
+    ).rejects.toMatchObject({ code: "AMOUNT_TOO_LARGE" });
+  });
+});
+
+describe("a cancelled sale stops counting everywhere", () => {
+  it("frees the campaign's monthly cap it had consumed", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: false, maxRedemptionsPerMonth: 1 });
+    const first = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
+    await expect(
+      redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" }),
+    ).rejects.toMatchObject({ code: "MONTHLY_CAP_REACHED" });
+
+    await cancelRedemption(store, { businessId: business.id, redemptionId: first.id });
+    await expect(
+      redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" }),
+    ).resolves.toBeTruthy();
+  });
+
+  it("does not push the influencer up a tier", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: false });
+    const sales = [];
+    for (let i = 0; i < 10; i++) {
+      sales.push(await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" }));
+    }
+    // Ten live sales would make the next one SILVER; cancel one and it must not
+    await cancelRedemption(store, { businessId: business.id, redemptionId: sales[0].id });
+    const next = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
+    expect(next.tier).toBe("BRONZE");
+  });
+});

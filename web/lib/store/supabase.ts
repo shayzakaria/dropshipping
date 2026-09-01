@@ -469,6 +469,7 @@ export class SupabaseStore implements DataStore {
         .from("redemptions")
         .select("*", { count: "exact", head: true })
         .eq("influencer_id", influencerId)
+        .neq("status", "cancelled")
         .gte("created_at", start)
         .lt("created_at", next),
     );
@@ -481,6 +482,7 @@ export class SupabaseStore implements DataStore {
         .from("redemptions")
         .select("*", { count: "exact", head: true })
         .eq("campaign_id", campaignId)
+        .neq("status", "cancelled")
         .gte("created_at", start)
         .lt("created_at", next),
     );

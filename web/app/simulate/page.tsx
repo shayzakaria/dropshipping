@@ -1,19 +1,22 @@
 import { Card } from "@/components/ui";
-import { getReadyStore } from "@/lib/store";
+import { getReadyStore, isDemoMode } from "@/lib/store";
 import { SimulatorForm } from "./SimulatorForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function SimulatePage() {
-  // מציג קוד אמיתי מנתוני הדמו כדי שאפשר יהיה לנסות מיד
-  const store = await getReadyStore();
-  const campaigns = await store.listActiveCampaigns();
+  // Pre-fill a working code only over demo data. Over real data this would
+  // hand any visitor a live influencer's code.
+  const demo = isDemoMode();
   let demoCode: string | undefined;
-  for (const c of campaigns) {
-    const codes = await store.listCodesByCampaign(c.id);
-    if (codes.length > 0) {
-      demoCode = codes[0].code;
-      break;
+  if (demo) {
+    const store = await getReadyStore();
+    for (const c of await store.listActiveCampaigns()) {
+      const codes = await store.listCodesByCampaign(c.id);
+      if (codes.length > 0) {
+        demoCode = codes[0].code;
+        break;
+      }
     }
   }
 

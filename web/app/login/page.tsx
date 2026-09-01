@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui";
 import { MegaphoneIcon, StoreIcon } from "@/components/icons";
-import { getReadyStore } from "@/lib/store";
+import { getReadyStore, isDemoMode } from "@/lib/store";
 import { loginAs } from "../actions";
 import { RegisterForm } from "./RegisterForm";
 
@@ -8,14 +8,20 @@ export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
   const store = await getReadyStore();
-  const users = await store.listUsers();
+  const demo = isDemoMode();
+  // Never list real accounts: the list is what makes passwordless sign-in work
+  const users = demo ? await store.listUsers() : [];
 
   return (
     <div className="mx-auto grid max-w-3xl gap-6 sm:grid-cols-2">
       <Card>
-        <h1 className="font-display text-4xl leading-none">כניסה מהירה</h1>
+        <h1 className="font-display text-4xl leading-none">
+          {demo ? "כניסה מהירה" : "כניסה"}
+        </h1>
         <p className="mt-2 text-sm font-light text-mut">
-          היכנסו כאחת מדמויות הדמו כדי לראות את שני הצדדים של הפלטפורמה.
+          {demo
+            ? "היכנסו כאחת מדמויות הדמו כדי לראות את שני הצדדים של הפלטפורמה."
+            : "כניסה עם סיסמה תיפתח בקרוב. כניסת הדמו סגורה כשמחוברים נתונים אמיתיים."}
         </p>
         <div className="mt-4 space-y-2">
           {users.map((u) => (

@@ -11,6 +11,7 @@ import {
 } from "@/lib/domain/logic";
 
 const campaign = { buyerDiscountPct: 10, influencerPct: 7, platformPct: 3 };
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 describe("computeSplit", () => {
   it("splits a 300₪ order at 10/7/3", () => {
@@ -113,5 +114,43 @@ describe("monthKey", () => {
   it("formats year-month with padding", () => {
     expect(monthKey(new Date("2026-03-05T10:00:00Z"))).toBe("2026-03");
     expect(monthKey(new Date("2026-11-30T23:59:59Z"))).toBe("2026-11");
+  });
+});
+
+describe("computeSplit — the platform share can never go negative", () => {
+  // A regression the earlier test missed by only ever checking ₪100, the one
+  // amount whose split cannot round badly.
+  it("handles the exact case that produced -0.01", () => {
+    const s = computeSplit(4258.19, { buyerDiscountPct: 10, influencerPct: 7, platformPct: 1 }, 2);
+    expect(s.platformFee).toBe(0);
+    expect(s.buyerDiscount).toBe(425.82);
+    expect(s.influencerCommission).toBe(340.65);
+    expect(round2(s.buyerDiscount + s.influencerCommission + s.platformFee)).toBe(s.businessTotalCost);
+  });
+
+  it("holds across the whole range of amounts, splits and tier bonuses", () => {
+    const splits = [
+      { buyerDiscountPct: 10, influencerPct: 7, platformPct: 1 },
+      { buyerDiscountPct: 10, influencerPct: 7, platformPct: 2 },
+      { buyerDiscountPct: 10, influencerPct: 7, platformPct: 3 },
+      { buyerDiscountPct: 12, influencerPct: 5, platformPct: 3 },
+      { buyerDiscountPct: 1, influencerPct: 1, platformPct: 1 },
+      { buyerDiscountPct: 25, influencerPct: 20, platformPct: 5 },
+    ];
+    let checked = 0;
+    for (const split of splits) {
+      for (const bonus of [0, 1, 2, 5]) {
+        for (let cents = 1; cents <= 500_000; cents += 977) {
+          const s = computeSplit(cents / 100, split, bonus);
+          expect(s.platformFee).toBeGreaterThanOrEqual(0);
+          expect(s.influencerCommission).toBeGreaterThanOrEqual(0);
+          expect(round2(s.buyerDiscount + s.influencerCommission + s.platformFee)).toBe(
+            s.businessTotalCost,
+          );
+          checked++;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(10_000);
   });
 });

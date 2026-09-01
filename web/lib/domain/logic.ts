@@ -54,9 +54,17 @@ export function computeSplit(
   const totalPct = campaign.buyerDiscountPct + campaign.influencerPct + campaign.platformPct;
   const businessTotalCost = round2((orderAmount * totalPct) / 100);
   const buyerDiscount = round2((orderAmount * campaign.buyerDiscountPct) / 100);
-  const influencerCommission = round2((orderAmount * (campaign.influencerPct + bonus)) / 100);
+  let influencerCommission = round2((orderAmount * (campaign.influencerPct + bonus)) / 100);
   // Platform takes the remainder so the three parts always sum exactly to the business cost
-  const platformFee = round2(businessTotalCost - buyerDiscount - influencerCommission);
+  let platformFee = round2(businessTotalCost - buyerDiscount - influencerCommission);
+  if (platformFee < 0) {
+    // When the tier bonus consumes the whole platform share, three independent
+    // roundings can leave the platform an agora short. The shortfall comes off
+    // the commission rather than being stored as a negative fee, which the
+    // database rejects outright.
+    influencerCommission = round2(influencerCommission + platformFee);
+    platformFee = 0;
+  }
   return { buyerDiscount, influencerCommission, platformFee, businessTotalCost };
 }
 
@@ -119,6 +127,15 @@ export const COMMISSION_HOLD_DAYS = 14;
 
 /** Nothing is paid out below this amount, to keep transfer costs sane */
 export const MIN_PAYOUT_ILS = 100;
+
+/**
+ * Our share of every sale. Deliberately not read from the campaign form:
+ * the business sets its own discount and commission, never the platform fee.
+ */
+export const PLATFORM_PCT = 3;
+
+/** No single order may be worth more than this. A typo should not book a fortune. */
+export const MAX_ORDER_AMOUNT_ILS = 200_000;
 
 export function holdUntilFor(soldAt: Date): string {
   const until = new Date(soldAt.getTime());

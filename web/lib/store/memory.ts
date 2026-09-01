@@ -165,17 +165,24 @@ export class MemoryStore implements DataStore {
     if (r) this.redemptions.set(id, { ...r, status });
   }
 
+  // Cancelled sales came back, so they must not earn a tier or eat a budget cap
   async countInfluencerRedemptionsInMonth(influencerId: string, at: Date): Promise<number> {
     const key = monthKey(at);
     return [...this.redemptions.values()].filter(
-      (r) => r.influencerId === influencerId && monthKey(new Date(r.createdAt)) === key,
+      (r) =>
+        r.influencerId === influencerId &&
+        r.status !== "cancelled" &&
+        monthKey(new Date(r.createdAt)) === key,
     ).length;
   }
 
   async countCampaignRedemptionsInMonth(campaignId: string, at: Date): Promise<number> {
     const key = monthKey(at);
     return [...this.redemptions.values()].filter(
-      (r) => r.campaignId === campaignId && monthKey(new Date(r.createdAt)) === key,
+      (r) =>
+        r.campaignId === campaignId &&
+        r.status !== "cancelled" &&
+        monthKey(new Date(r.createdAt)) === key,
     ).length;
   }
 

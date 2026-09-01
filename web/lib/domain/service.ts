@@ -3,6 +3,7 @@ import {
   computeSplit,
   DomainError,
   holdUntilFor,
+  MAX_ORDER_AMOUNT_ILS,
   normalizeCode,
   tierForMonthlySales,
 } from "./logic";
@@ -34,6 +35,19 @@ export interface RedeemInput {
 export async function redeemCode(store: DataStore, input: RedeemInput): Promise<Redemption> {
   const now = input.now ?? new Date();
 
+  // Authenticate before touching the code table. Looking the code up first
+  // turned the endpoint into an oracle: an unauthenticated caller could tell a
+  // real coupon code from a fake one by the error it got back.
+  const callerBusiness =
+    input.source === "api"
+      ? input.apiSecret
+        ? await store.getBusinessByApiSecret(input.apiSecret)
+        : null
+      : null;
+  if (input.source === "api" && !callerBusiness) {
+    throw new DomainError("BAD_SECRET", "מפתח ה-API אינו מוכר");
+  }
+
   const code = await store.getCodeByCode(normalizeCode(input.code));
   if (!code || code.status !== "active") {
     throw new DomainError("CODE_NOT_FOUND", "קוד הקופון לא קיים או לא פעיל");
@@ -49,12 +63,20 @@ export async function redeemCode(store: DataStore, input: RedeemInput): Promise<
     throw new DomainError("BUSINESS_NOT_FOUND", "העסק של הקמפיין לא נמצא");
   }
 
-  if (input.source === "api" && input.apiSecret !== business.apiSecret) {
-    throw new DomainError("BAD_SECRET", "מפתח ה-API אינו תואם לעסק של הקוד");
+  // A valid key for another business must not confirm that this code exists,
+  // so it gets the same answer as a code that is simply not there.
+  if (callerBusiness && callerBusiness.id !== business.id) {
+    throw new DomainError("CODE_NOT_FOUND", "קוד הקופון לא קיים או לא פעיל");
   }
 
   if (!Number.isFinite(input.orderAmount) || input.orderAmount <= 0) {
     throw new DomainError("INVALID_AMOUNT", "סכום הזמנה חייב להיות מספר חיובי");
+  }
+  if (input.orderAmount > MAX_ORDER_AMOUNT_ILS) {
+    throw new DomainError(
+      "AMOUNT_TOO_LARGE",
+      `סכום הזמנה חורג מהתקרה (${MAX_ORDER_AMOUNT_ILS} ₪)`,
+    );
   }
 
   // Idempotency comes after the secret check so an unauthenticated caller

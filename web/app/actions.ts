@@ -3,9 +3,9 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { clearSession, getCurrentUser, setSession } from "@/lib/auth";
-import { DomainError, validateCampaignSplit } from "@/lib/domain/logic";
+import { DomainError, PLATFORM_PCT, validateCampaignSplit } from "@/lib/domain/logic";
 import { cancelRedemption, redeemCode } from "@/lib/domain/service";
-import { getReadyStore } from "@/lib/store";
+import { getReadyStore, isDemoMode } from "@/lib/store";
 import type { Role } from "@/lib/domain/types";
 
 export interface FormState {
@@ -79,7 +79,9 @@ export async function createCampaign(_prev: FormState, formData: FormData): Prom
   const description = String(formData.get("description") ?? "").trim();
   const buyerDiscountPct = Number(formData.get("buyerDiscountPct"));
   const influencerPct = Number(formData.get("influencerPct"));
-  const platformPct = Number(formData.get("platformPct"));
+  // Never taken from the request: a readOnly input is a browser-side courtesy,
+  // not a control. The platform's own share is set here.
+  const platformPct = PLATFORM_PCT;
   const newCustomersOnly = formData.get("newCustomersOnly") === "on";
   const maxRaw = String(formData.get("maxRedemptionsPerMonth") ?? "").trim();
   const maxRedemptionsPerMonth = maxRaw ? Number(maxRaw) : undefined;
@@ -156,6 +158,22 @@ export async function simulatePurchase(_prev: FormState, formData: FormData): Pr
   if (!code) return { error: "צריך להזין קוד קופון" };
 
   const store = await getReadyStore();
+
+  // The simulator writes real redemptions, so outside demo mode it is a tool
+  // for a business to test its own integration — never an open endpoint that
+  // an anonymous visitor can use to mint commissions on someone else's code.
+  if (!isDemoMode()) {
+    const user = await getCurrentUser();
+    if (!user || user.role !== "business") {
+      return { error: "הסימולטור פתוח רק לבעלי עסק מחוברים" };
+    }
+    const business = await store.getBusinessByOwner(user.id);
+    const found = await store.getCodeByCode(code);
+    const campaign = found ? await store.getCampaign(found.campaignId) : null;
+    if (!business || !campaign || campaign.businessId !== business.id) {
+      return { error: "אפשר לבדוק רק קודים של הקמפיינים שלכם" };
+    }
+  }
   try {
     const r = await redeemCode(store, {
       code,
