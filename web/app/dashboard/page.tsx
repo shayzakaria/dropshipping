@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Badge, Card, SectionTitle, Stat, btnGhost, btnPrimary } from "@/components/ui";
+import { Badge, Card, SectionTitle, StatStrip, btnGhost, btnPrimary } from "@/components/ui";
 import { Barcode } from "@/components/Barcode";
 import { CopyButton } from "@/components/CopyButton";
 import { getCurrentUser } from "@/lib/auth";
@@ -49,14 +49,19 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
         </Link>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="מכירות דרך הפלטפורמה" value={stats.monthCount} sub={`מחזור: ${formatILS(stats.monthRevenue)}`} />
-        <Stat label="הנחות שניתנו לקונים" value={formatILS(stats.monthBuyerDiscounts)} />
-        <Stat label="עמלות למשפיענים" value={formatILS(stats.monthCommissions)} />
-        <Stat
-          label="עלות שיווק כוללת"
-          value={formatILS(stats.monthTotalCost)}
-          sub={`${stats.costPctOfRevenue}% מהמחזור — קבוע וידוע מראש`}
+      <div className="mt-6">
+        <StatStrip
+          items={[
+            { label: "מכירות דרך הפלטפורמה", value: stats.monthCount, sub: `מחזור: ${formatILS(stats.monthRevenue)}` },
+            { label: "הנחות שניתנו לקונים", value: formatILS(stats.monthBuyerDiscounts) },
+            { label: "עמלות למשפיענים", value: formatILS(stats.monthCommissions) },
+            {
+              label: "עלות שיווק כוללת",
+              value: formatILS(stats.monthTotalCost),
+              sub: `${stats.costPctOfRevenue}% מהמחזור — קבוע וידוע מראש`,
+              accent: true,
+            },
+          ]}
         />
       </div>
 
@@ -155,18 +160,20 @@ async function InfluencerDashboard({ user, store }: { user: User; store: DataSto
         </Link>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="מכירות החודש" value={stats.monthCount} />
-        <Stat label="עמלות החודש" value={formatILS(stats.monthEarnings)} />
-        <Stat label='סה"כ עמלות' value={formatILS(stats.totalEarnings)} sub={`${stats.totalCount} מכירות בסך הכול`} />
-        <Stat
-          label="המדרגה שלי"
-          value={tier.label}
-          sub={
-            next
-              ? `עוד ${next.minMonthlySales - stats.monthCount} מכירות למדרגת ${next.label} (+${next.bonusPct}% עמלה)`
-              : "המדרגה הגבוהה ביותר — כל הכבוד!"
-          }
+      <div className="mt-6">
+        <StatStrip
+          items={[
+            { label: "מכירות החודש", value: stats.monthCount },
+            { label: "עמלות החודש", value: formatILS(stats.monthEarnings), accent: true },
+            { label: 'סה"כ עמלות', value: formatILS(stats.totalEarnings), sub: `${stats.totalCount} מכירות בסך הכול` },
+            {
+              label: "המדרגה שלי",
+              value: tier.label,
+              sub: next
+                ? `עוד ${next.minMonthlySales - stats.monthCount} מכירות למדרגת ${next.label} (+${next.bonusPct}% עמלה)`
+                : "המדרגה הגבוהה ביותר — כל הכבוד!",
+            },
+          ]}
         />
       </div>
 
@@ -180,7 +187,7 @@ async function InfluencerDashboard({ user, store }: { user: User; store: DataSto
         {codes.map((code) => {
           const campaign = campaignById.get(code.campaignId);
           return (
-            <Card key={code.id} className="!p-0">
+            <Card key={code.id} pad={false}>
               <div className="flex items-center justify-between gap-3 border-b-2 border-dashed border-ink/25 px-5 py-3">
                 <code className="font-mono text-lg font-bold tracking-widest" dir="ltr">
                   {code.code}
@@ -236,7 +243,7 @@ function RedemptionsTable({
     return <p className="text-sm text-mut">אין עדיין מכירות. אפשר לייצר אחת בסימולטור.</p>;
   }
   return (
-    <Card className="overflow-x-auto !p-0">
+    <Card pad={false} className="overflow-x-auto">
       <table className="tabular w-full min-w-[560px] text-sm">
         <thead>
           <tr className="border-b-2 border-dashed border-ink/30 text-right text-xs text-mut">

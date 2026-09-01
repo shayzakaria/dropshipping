@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CheckIcon } from "./icons";
 
 export function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -16,9 +17,15 @@ export function CopyButton({ text }: { text: string }) {
           // clipboard unavailable (e.g. http) — ignore
         }
       }}
-      className="rounded-md border border-ink/30 bg-label px-2 py-1 text-xs font-semibold text-ink transition hover:bg-paper"
+      className="inline-flex items-center gap-1 rounded-md border border-ink/30 bg-label px-2 py-1 text-xs font-semibold text-ink transition hover:bg-paper"
     >
-      {copied ? "הועתק ✓" : "העתקה"}
+      {copied ? (
+        <>
+          <CheckIcon className="h-3 w-3 text-ok" /> הועתק
+        </>
+      ) : (
+        "העתקה"
+      )}
     </button>
   );
 }

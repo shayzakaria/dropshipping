@@ -64,6 +64,8 @@ body {
   border: 2px solid var(--color-kraft);
 }
 
+/* רכיבי העולם בשכבת components — כך שכלי utility של Tailwind גוברים עליהם */
+@layer components {
 /* תווית: הקונטיינר הבסיסי של העולם */
 .label-card {
   background: var(--color-label);
@@ -122,4 +124,5 @@ body {
 /* מספרים טבלאיים בכל נתון כספי */
 .tabular {
   font-variant-numeric: tabular-nums;
+}
 }

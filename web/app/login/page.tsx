@@ -38,7 +38,7 @@ export default async function LoginPage() {
         </div>
       </Card>
       <Card>
-        <h1 className="font-display text-4xl leading-none">הרשמה חדשה</h1>
+        <h2 className="font-display text-4xl leading-none">הרשמה חדשה</h2>
         <p className="mt-2 text-sm font-light text-mut">
           בדמו אין סיסמה — בגרסת הפרודקשן זה יוחלף ב-Supabase Auth.
         </p>

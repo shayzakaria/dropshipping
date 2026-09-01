@@ -2,13 +2,18 @@
 
 import { useActionState } from "react";
 import { simulatePurchase, type FormState } from "../actions";
+import { Barcode } from "@/components/Barcode";
+import { CheckIcon } from "@/components/icons";
 import { btnPrimary, inputCls } from "@/components/ui";
+import { formatILS } from "@/lib/format";
 
-const nis = (n: number) => `₪${n.toLocaleString("he-IL", { maximumFractionDigits: 2 })}`;
+const round2 = (n: number) => Math.round(n * 100) / 100;
 const tierLabel = (t: string) => (t === "GOLD" ? "זהב" : t === "SILVER" ? "כסף" : "ברונזה");
 
 export function SimulatorForm({ demoCode }: { demoCode?: string }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(simulatePurchase, {});
+  const r = state.result;
+  const totalCost = r ? round2(r.buyerDiscount + r.influencerCommission + r.platformFee) : 0;
 
   return (
     <div className="space-y-4">
@@ -43,31 +48,48 @@ export function SimulatorForm({ demoCode }: { demoCode?: string }) {
         </div>
       ) : null}
 
-      {state.ok && state.result ? (
-        <div className="rounded-lg border border-ok/40 bg-okbg p-4 text-sm">
-          <div className="font-bold text-ok">המכירה נרשמה ✓</div>
-          <div className="tabular mt-3 grid grid-cols-2 gap-3 font-mono text-xs sm:grid-cols-4">
-            <div>
-              <div className="font-sans text-mut">סכום קנייה</div>
-              <div className="mt-0.5 text-base font-bold">{nis(state.result.orderAmount)}</div>
+      {state.ok && r ? (
+        /* המכירה מודפסת כתווית פיצול — בדיוק כמו שההבטחה בעמוד הבית נראית */
+        <div className="label-card relative p-0" role="status">
+          <div className="tape absolute -top-3 right-8 h-6 w-20 -rotate-2" aria-hidden="true" />
+          <div className="flex items-center justify-between gap-3 border-b-2 border-dashed border-ink/25 px-5 py-3">
+            <div className="flex items-center gap-2 font-bold text-ok">
+              <CheckIcon className="h-5 w-5" /> המכירה נרשמה
             </div>
-            <div>
-              <div className="font-sans text-mut">הנחה לקונה</div>
-              <div className="mt-0.5 text-base font-bold">{nis(-state.result.buyerDiscount)}</div>
-            </div>
-            <div>
-              <div className="font-sans text-mut">עמלת המשפיען</div>
-              <div className="mt-0.5 text-base font-bold text-deal-deep">{nis(state.result.influencerCommission)}</div>
-            </div>
-            <div>
-              <div className="font-sans text-mut">דמי פלטפורמה</div>
-              <div className="mt-0.5 text-base font-bold">{nis(state.result.platformFee)}</div>
+            <div className="w-24 text-ink">
+              <Barcode seed={r.code} height={20} />
+              <div className="mt-0.5 text-center font-mono text-[11px] font-semibold tracking-widest" dir="ltr">
+                {r.code}
+              </div>
             </div>
           </div>
-          <p className="mt-3 text-xs text-mut">
-            מדרגת המשפיען: {tierLabel(state.result.tier)}
-            {state.result.tierBonusPct > 0 ? ` (+${state.result.tierBonusPct}% בונוס על חשבון הפלטפורמה)` : ""} ·
-            המכירה מופיעה עכשיו בדשבורד של העסק ושל המשפיען.
+          <dl className="tabular px-5 py-4 text-sm">
+            <div className="flex items-baseline justify-between py-1.5">
+              <dt className="text-mut">סכום הקנייה</dt>
+              <dd className="font-mono font-semibold" dir="ltr">{formatILS(r.orderAmount)}</dd>
+            </div>
+            <div className="flex items-baseline justify-between py-1.5">
+              <dt>הנחה לקונה</dt>
+              <dd className="font-mono font-semibold" dir="ltr">{formatILS(-r.buyerDiscount)}</dd>
+            </div>
+            <div className="flex items-baseline justify-between py-1.5">
+              <dt>עמלת המשפיען</dt>
+              <dd className="font-mono font-bold text-deal-deep" dir="ltr">{formatILS(r.influencerCommission)}</dd>
+            </div>
+            <div className="flex items-baseline justify-between py-1.5">
+              <dt>דמי פלטפורמה</dt>
+              <dd className="font-mono font-semibold" dir="ltr">{formatILS(r.platformFee)}</dd>
+            </div>
+          </dl>
+          <div className="perforation mx-5" aria-hidden="true" />
+          <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-4">
+            <span className="font-bold">העסק שילם {formatILS(totalCost)}</span>
+            <span className="text-sm text-mut">רק כי המכירה קרתה</span>
+          </div>
+          <p className="border-t border-dashed border-ink/25 px-5 py-3 text-xs text-mut">
+            מדרגת המשפיען: {tierLabel(r.tier)}
+            {r.tierBonusPct > 0 ? ` (+${r.tierBonusPct}% בונוס על חשבון הפלטפורמה)` : ""} · המכירה מופיעה
+            עכשיו בדשבורד של העסק ושל המשפיען.
           </p>
         </div>
       ) : null}

@@ -86,6 +86,14 @@ export function ScissorsIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function CheckIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Base {...props}>
+      <path d="M4.5 12.5l5 5L19.5 6.5" />
+    </Base>
+  );
+}
+
 export function ArrowIcon(props: SVGProps<SVGSVGElement>) {
   /* חץ "המשך" בעברית — מצביע שמאלה */
   return (

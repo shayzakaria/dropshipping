@@ -4,9 +4,9 @@ import { useActionState, useMemo, useState } from "react";
 import { createCampaign, type FormState } from "../../actions";
 import { btnPrimary, inputCls } from "@/components/ui";
 import { computeSplit } from "@/lib/domain/logic";
+import { formatILS as nis } from "@/lib/format";
 
 const EXAMPLE_ORDER = 300;
-const nis = (n: number) => `₪${n.toLocaleString("he-IL", { maximumFractionDigits: 2 })}`;
 
 export function CampaignForm() {
   const [state, formAction, pending] = useActionState<FormState, FormData>(createCampaign, {});

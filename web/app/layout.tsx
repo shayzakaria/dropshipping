@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <span className="inline-flex -rotate-6 items-center justify-center rounded-md bg-deal p-1.5 text-ink">
                 <TagIcon className="h-4 w-4" strokeWidth={2.2} />
               </span>
-              <span className="font-display text-4xl leading-none tracking-tight">BOOST</span>
+              <span className="font-sans text-[26px] font-extrabold uppercase leading-none tracking-tight">Boost</span>
               <span className="mt-1 self-start text-[10px] font-semibold text-mut">שם זמני</span>
             </Link>
             <nav className="flex flex-wrap items-center gap-1">
