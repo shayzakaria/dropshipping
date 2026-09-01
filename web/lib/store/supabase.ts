@@ -159,12 +159,25 @@ export class SupabaseStore implements DataStore {
     });
   }
 
+  /**
+   * Codes Postgres reports for a lookup that found nothing, as opposed to one
+   * that went wrong:
+   *  - PGRST116  no rows matched .single()
+   *  - 22P02     invalid text representation, e.g. "nope" compared to a uuid
+   *              column. A value that cannot even be a uuid matches no row, so
+   *              "not found" is the honest answer. Without this, an API caller
+   *              sending a malformed key got a 500 while a well-formed wrong
+   *              key got a 401 — which told them the shape of a valid key.
+   */
+  private static readonly MISS_CODES = new Set(["PGRST116", "22P02"]);
+
   private async one<T>(
     q: PromiseLike<{ data: T | null; error: { code?: string; message: string } | null }>,
   ): Promise<T | null> {
     const { data, error } = await q;
-    // PGRST116 = no rows matched .single(); a miss, not a failure
-    if (error && error.code !== "PGRST116") throw new Error(error.message);
+    if (error && !SupabaseStore.MISS_CODES.has(error.code ?? "")) {
+      throw new Error(error.message);
+    }
     return data ?? null;
   }
 

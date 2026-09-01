@@ -25,7 +25,15 @@ export interface DataStore {
   createBusiness(input: Omit<Business, "id" | "createdAt" | "apiSecret">): Promise<Business>;
   getBusiness(id: string): Promise<Business | null>;
   getBusinessByOwner(ownerId: string): Promise<Business | null>;
-  /** How a store authenticates itself to the public API */
+  /**
+   * How a store authenticates itself to the public API.
+   *
+   * Every lookup here takes a value straight off the wire, so a garbage
+   * argument must come back as null, never as a thrown error. An
+   * implementation that lets the database reject a malformed key turns a 401
+   * into a 500 — and the difference between the two tells an attacker what a
+   * well-formed key looks like.
+   */
   getBusinessByApiSecret(apiSecret: string): Promise<Business | null>;
 
   // Campaigns
