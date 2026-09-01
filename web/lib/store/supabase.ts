@@ -5,6 +5,7 @@ import type {
   CampaignStatus,
   CouponCode,
   Redemption,
+  RedemptionStatus,
   TierName,
   User,
 } from "../domain/types";
@@ -69,6 +70,9 @@ type RedemptionRow = {
   tier: TierName;
   tier_bonus_pct: number | string;
   customer_ref: string | null;
+  external_order_id: string | null;
+  status: RedemptionStatus;
+  hold_until: string;
   source: Redemption["source"];
   created_at: string;
 };
@@ -126,6 +130,9 @@ const toRedemption = (r: RedemptionRow): Redemption => ({
   tier: r.tier,
   tierBonusPct: num(r.tier_bonus_pct),
   customerRef: r.customer_ref ?? undefined,
+  externalOrderId: r.external_order_id ?? undefined,
+  status: r.status,
+  holdUntil: r.hold_until,
   source: r.source,
   createdAt: r.created_at,
 });
@@ -388,6 +395,9 @@ export class SupabaseStore implements DataStore {
         tier: input.tier,
         tier_bonus_pct: input.tierBonusPct,
         customer_ref: input.customerRef ?? null,
+        external_order_id: input.externalOrderId ?? null,
+        status: input.status,
+        hold_until: input.holdUntil,
         source: input.source,
       })
       .select()
@@ -416,6 +426,26 @@ export class SupabaseStore implements DataStore {
         .order("created_at", { ascending: false }),
     );
     return rows.map(toRedemption);
+  }
+
+  async getRedemptionByExternalOrderId(
+    businessId: string,
+    externalOrderId: string,
+  ): Promise<Redemption | null> {
+    const r = await this.one<RedemptionRow>(
+      this.db
+        .from("redemptions")
+        .select()
+        .eq("business_id", businessId)
+        .eq("external_order_id", externalOrderId.trim())
+        .maybeSingle<RedemptionRow>(),
+    );
+    return r ? toRedemption(r) : null;
+  }
+
+  async setRedemptionStatus(id: string, status: RedemptionStatus): Promise<void> {
+    const { error } = await this.db.from("redemptions").update({ status }).eq("id", id);
+    if (error) throw new Error(error.message);
   }
 
   async countInfluencerRedemptionsInMonth(influencerId: string, at: Date): Promise<number> {

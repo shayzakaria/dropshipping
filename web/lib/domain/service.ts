@@ -1,5 +1,11 @@
 import type { DataStore } from "../store/store";
-import { computeSplit, DomainError, normalizeCode, tierForMonthlySales } from "./logic";
+import {
+  computeSplit,
+  DomainError,
+  holdUntilFor,
+  normalizeCode,
+  tierForMonthlySales,
+} from "./logic";
 import type { Redemption, RedemptionSource } from "./types";
 
 export interface RedeemInput {
@@ -10,6 +16,12 @@ export interface RedeemInput {
   customerRef?: string;
   /** Required when source === "api": must match the business's apiSecret */
   apiSecret?: string;
+  /**
+   * The store's own order id. When supplied, replaying the same order returns
+   * the redemption already on file instead of paying a second commission —
+   * checkout webhooks retry, and a retry must not cost the business twice.
+   */
+  externalOrderId?: string;
   /** Injectable clock for tests */
   now?: Date;
 }
@@ -43,6 +55,14 @@ export async function redeemCode(store: DataStore, input: RedeemInput): Promise<
 
   if (!Number.isFinite(input.orderAmount) || input.orderAmount <= 0) {
     throw new DomainError("INVALID_AMOUNT", "סכום הזמנה חייב להיות מספר חיובי");
+  }
+
+  // Idempotency comes after the secret check so an unauthenticated caller
+  // cannot probe which order ids exist.
+  const externalOrderId = input.externalOrderId?.trim() || undefined;
+  if (externalOrderId) {
+    const already = await store.getRedemptionByExternalOrderId(business.id, externalOrderId);
+    if (already) return already;
   }
 
   const customerRef = input.customerRef?.trim().toLowerCase() || undefined;
@@ -87,6 +107,9 @@ export async function redeemCode(store: DataStore, input: RedeemInput): Promise<
     tier: tier.name,
     tierBonusPct: tier.bonusPct,
     customerRef,
+    externalOrderId,
+    status: "held",
+    holdUntil: holdUntilFor(now),
     source: input.source,
   });
 }

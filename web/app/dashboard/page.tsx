@@ -3,10 +3,16 @@ import { redirect } from "next/navigation";
 import { Badge, Card, SectionTitle, StatStrip, btnGhost, btnPrimary } from "@/components/ui";
 import { Barcode } from "@/components/Barcode";
 import { CopyButton } from "@/components/CopyButton";
+import { ShareCode } from "@/components/ShareCode";
 import { getCurrentUser } from "@/lib/auth";
-import { nextTier, tierForMonthlySales } from "@/lib/domain/logic";
-import { businessStats, influencerStats } from "@/lib/domain/stats";
-import type { Campaign, CouponCode, Redemption, User } from "@/lib/domain/types";
+import {
+  COMMISSION_HOLD_DAYS,
+  commissionState,
+  nextTier,
+  tierForMonthlySales,
+} from "@/lib/domain/logic";
+import { businessStats, influencerStats, walletStats } from "@/lib/domain/stats";
+import type { Business, Campaign, CouponCode, Redemption, User } from "@/lib/domain/types";
 import { formatDate, formatILS } from "@/lib/format";
 import { getReadyStore } from "@/lib/store";
 import type { DataStore } from "@/lib/store/store";
@@ -118,10 +124,15 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
 {
   "code": "XXXX-XXXX",
   "order_amount": 300,
+  "order_id": "1001",
   "customer_ref": "buyer@example.com",
   "api_secret": "<המפתח שלך>"
 }`}
         </pre>
+        <p className="mt-2 text-xs leading-relaxed text-mut">
+          שלחו תמיד את <code className="font-mono">order_id</code> — מספר ההזמנה בחנות שלכם. כך
+          שליחה חוזרת של אותה הזמנה לא תירשם פעמיים ולא תחויבו בעמלה כפולה.
+        </p>
         <p className="mt-2 text-xs text-mut">
           אפשר לנסות בלי אינטגרציה דרך <Link href="/simulate" className="font-semibold text-deal-deep underline underline-offset-2">סימולטור הקנייה</Link>.
         </p>
@@ -133,18 +144,20 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
 async function InfluencerDashboard({ user, store }: { user: User; store: DataStore }) {
   const codes = await store.listCodesByInfluencer(user.id);
   const redemptions = await store.listRedemptionsByInfluencer(user.id);
-  const stats = influencerStats(redemptions, new Date());
+  const now = new Date();
+  const stats = influencerStats(redemptions, now);
+  const wallet = walletStats(redemptions, now);
   const tier = tierForMonthlySales(stats.monthCount);
   const next = nextTier(stats.monthCount);
 
   const campaignById = new Map<string, Campaign>();
-  const businessNameByCampaign = new Map<string, string>();
+  const businessByCampaign = new Map<string, Business>();
   for (const code of codes) {
     const campaign = await store.getCampaign(code.campaignId);
     if (campaign) {
       campaignById.set(campaign.id, campaign);
       const business = await store.getBusiness(campaign.businessId);
-      if (business) businessNameByCampaign.set(campaign.id, business.name);
+      if (business) businessByCampaign.set(campaign.id, business);
     }
   }
 
@@ -163,9 +176,24 @@ async function InfluencerDashboard({ user, store }: { user: User; store: DataSto
       <div className="mt-6">
         <StatStrip
           items={[
-            { label: "מכירות החודש", value: stats.monthCount },
-            { label: "עמלות החודש", value: formatILS(stats.monthEarnings), accent: true },
-            { label: 'סה"כ עמלות', value: formatILS(stats.totalEarnings), sub: `${stats.totalCount} מכירות בסך הכול` },
+            { label: "מכירות החודש", value: stats.monthCount, sub: `${stats.totalCount} מכירות בסך הכול` },
+            {
+              label: "ממתין לשחרור",
+              value: formatILS(wallet.pending),
+              // Highlight whichever number the influencer can act on today
+              accent: wallet.available === 0 && wallet.pending > 0,
+              sub: wallet.nextReleaseAt
+                ? `הסכום הקרוב משתחרר ב-${formatDate(wallet.nextReleaseAt)}`
+                : "אין עמלות בהמתנה",
+            },
+            {
+              label: "זמין למשיכה",
+              value: formatILS(wallet.available),
+              accent: wallet.available > 0,
+              sub: wallet.canWithdraw
+                ? "אפשר לבקש תשלום"
+                : `מינימום למשיכה: ${formatILS(wallet.minPayout)}`,
+            },
             {
               label: "המדרגה שלי",
               value: tier.label,
@@ -176,6 +204,12 @@ async function InfluencerDashboard({ user, store }: { user: User; store: DataSto
           ]}
         />
       </div>
+
+      <p className="mt-3 text-xs leading-relaxed text-mut">
+        עמלה על מכירה נשמרת {COMMISSION_HOLD_DAYS} ימים לפני שהיא זמינה למשיכה — זה חלון
+        הביטול של הקונה לפי חוק הגנת הצרכן. אם ההזמנה חוזרת, העמלה מתבטלת.
+        {wallet.cancelled > 0 ? ` עד היום בוטלו ${formatILS(wallet.cancelled)} בעקבות החזרות.` : ""}
+      </p>
 
       <SectionTitle>הקודים שלי</SectionTitle>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -201,12 +235,22 @@ async function InfluencerDashboard({ user, store }: { user: User; store: DataSto
                 {campaign ? (
                   <>
                     <p className="mt-2 text-sm font-semibold">
-                      {campaign.title} · <span className="font-normal text-mut">{businessNameByCampaign.get(campaign.id)}</span>
+                      {campaign.title} ·{" "}
+                      <span className="font-normal text-mut">
+                        {businessByCampaign.get(campaign.id)?.name}
+                      </span>
                     </p>
                     <p className="mt-1 text-xs text-mut">
                       הקונה מקבל {campaign.buyerDiscountPct}% הנחה · את/ה מרוויח/ה{" "}
                       <span className="font-bold text-deal-deep">{campaign.influencerPct + tier.bonusPct}%</span> מכל קנייה
                     </p>
+                    <ShareCode
+                      code={code.code}
+                      campaignTitle={campaign.title}
+                      businessName={businessByCampaign.get(campaign.id)?.name ?? ""}
+                      discountPct={campaign.buyerDiscountPct}
+                      storeUrl={businessByCampaign.get(campaign.id)?.storeUrl}
+                    />
                   </>
                 ) : null}
               </div>
@@ -228,6 +272,18 @@ async function namesById(store: DataStore, ids: string[]): Promise<Map<string, s
     if (u) map.set(id, u.name);
   }
   return map;
+}
+
+const COMMISSION_LABELS = {
+  pending: { text: "ממתין", tone: "default" as const },
+  available: { text: "זמין למשיכה", tone: "success" as const },
+  paid: { text: "שולם", tone: "default" as const },
+  cancelled: { text: "בוטל", tone: "warning" as const },
+};
+
+function CommissionBadge({ redemption }: { redemption: Redemption }) {
+  const { text, tone } = COMMISSION_LABELS[commissionState(redemption)];
+  return <Badge tone={tone}>{text}</Badge>;
 }
 
 function RedemptionsTable({
@@ -253,6 +309,7 @@ function RedemptionsTable({
             <th className="px-4 py-3 font-semibold">הנחה לקונה</th>
             <th className="px-4 py-3 font-semibold">עמלת משפיען</th>
             {perspective === "business" ? <th className="px-4 py-3 font-semibold">דמי פלטפורמה</th> : null}
+            {perspective === "influencer" ? <th className="px-4 py-3 font-semibold">מצב העמלה</th> : null}
             <th className="px-4 py-3 font-semibold">מדרגה</th>
           </tr>
         </thead>
@@ -270,6 +327,11 @@ function RedemptionsTable({
               </td>
               {perspective === "business" ? (
                 <td className="px-4 py-2.5 font-mono" dir="ltr">{formatILS(r.platformFee)}</td>
+              ) : null}
+              {perspective === "influencer" ? (
+                <td className="px-4 py-2.5 text-xs">
+                  <CommissionBadge redemption={r} />
+                </td>
               ) : null}
               <td className="px-4 py-2.5 text-xs text-mut">
                 {r.tier === "GOLD" ? "זהב" : r.tier === "SILVER" ? "כסף" : "ברונזה"}

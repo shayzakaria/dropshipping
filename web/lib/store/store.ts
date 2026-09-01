@@ -4,6 +4,7 @@ import type {
   CampaignStatus,
   CouponCode,
   Redemption,
+  RedemptionStatus,
   User,
 } from "../domain/types";
 
@@ -42,6 +43,13 @@ export interface DataStore {
   createRedemption(input: Omit<Redemption, "id" | "createdAt">): Promise<Redemption>;
   listRedemptionsByBusiness(businessId: string): Promise<Redemption[]>;
   listRedemptionsByInfluencer(influencerId: string): Promise<Redemption[]>;
+  /** Idempotency lookup: has this store's order already been recorded? */
+  getRedemptionByExternalOrderId(
+    businessId: string,
+    externalOrderId: string,
+  ): Promise<Redemption | null>;
+  /** Cancel a commission (order returned) or mark it paid out */
+  setRedemptionStatus(id: string, status: RedemptionStatus): Promise<void>;
   countInfluencerRedemptionsInMonth(influencerId: string, at: Date): Promise<number>;
   countCampaignRedemptionsInMonth(campaignId: string, at: Date): Promise<number>;
   hasCustomerBoughtBefore(businessId: string, customerRef: string): Promise<boolean>;

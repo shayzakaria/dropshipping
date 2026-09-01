@@ -5,6 +5,7 @@ import type {
   CampaignStatus,
   CouponCode,
   Redemption,
+  RedemptionStatus,
   User,
 } from "../domain/types";
 import { generateCode, monthKey, normalizeCode } from "../domain/logic";
@@ -137,6 +138,22 @@ export class MemoryStore implements DataStore {
     return [...this.redemptions.values()]
       .filter((r) => r.influencerId === influencerId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getRedemptionByExternalOrderId(
+    businessId: string,
+    externalOrderId: string,
+  ): Promise<Redemption | null> {
+    const needle = externalOrderId.trim();
+    for (const r of this.redemptions.values()) {
+      if (r.businessId === businessId && r.externalOrderId === needle) return r;
+    }
+    return null;
+  }
+
+  async setRedemptionStatus(id: string, status: RedemptionStatus): Promise<void> {
+    const r = this.redemptions.get(id);
+    if (r) this.redemptions.set(id, { ...r, status });
   }
 
   async countInfluencerRedemptionsInMonth(influencerId: string, at: Date): Promise<number> {

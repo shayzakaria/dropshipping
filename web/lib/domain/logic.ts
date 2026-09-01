@@ -1,4 +1,4 @@
-import type { Campaign, Split, Tier } from "./types";
+import type { Campaign, CommissionState, Redemption, Split, Tier } from "./types";
 
 export class DomainError extends Error {
   constructor(
@@ -108,4 +108,34 @@ export function normalizeCode(raw: string): string {
 
 export function monthKey(date: Date): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * How long a commission is held before it can be paid out. Israeli consumer
+ * law gives a distance-selling buyer 14 days to cancel a purchase, so paying
+ * earlier risks paying commission on a sale that comes back.
+ */
+export const COMMISSION_HOLD_DAYS = 14;
+
+/** Nothing is paid out below this amount, to keep transfer costs sane */
+export const MIN_PAYOUT_ILS = 100;
+
+export function holdUntilFor(soldAt: Date): string {
+  const until = new Date(soldAt.getTime());
+  until.setUTCDate(until.getUTCDate() + COMMISSION_HOLD_DAYS);
+  return until.toISOString();
+}
+
+/**
+ * What the influencer actually sees for one sale. Availability is derived from
+ * the clock rather than flipped by a scheduled job, so there is never a window
+ * in which the stored state disagrees with reality.
+ */
+export function commissionState(
+  redemption: Pick<Redemption, "status" | "holdUntil">,
+  now: Date = new Date(),
+): CommissionState {
+  if (redemption.status === "cancelled") return "cancelled";
+  if (redemption.status === "paid") return "paid";
+  return now.toISOString() >= redemption.holdUntil ? "available" : "pending";
 }

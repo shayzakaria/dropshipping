@@ -52,6 +52,17 @@ export interface CouponCode {
 
 export type RedemptionSource = "api" | "manual" | "simulator";
 
+/**
+ * Stored lifecycle of a redemption's commission.
+ *  - "held"      the normal state: money is set aside during the return window
+ *  - "cancelled" the order came back or the sale was voided; no commission is owed
+ *  - "paid"      the commission was actually paid out to the influencer
+ */
+export type RedemptionStatus = "held" | "cancelled" | "paid";
+
+/** What the influencer sees, derived from status + the hold deadline + the clock */
+export type CommissionState = "pending" | "available" | "cancelled" | "paid";
+
 export interface Redemption {
   id: string;
   codeId: string;
@@ -66,6 +77,11 @@ export interface Redemption {
   tierBonusPct: number;
   /** Buyer identifier (email/phone) as reported by the store, used for fraud & new-customer checks */
   customerRef?: string;
+  /** The store's own order id. Makes a retried checkout call idempotent. */
+  externalOrderId?: string;
+  status: RedemptionStatus;
+  /** Commission is payable only from this moment on — the buyer's return window */
+  holdUntil: string;
   source: RedemptionSource;
   createdAt: string;
 }

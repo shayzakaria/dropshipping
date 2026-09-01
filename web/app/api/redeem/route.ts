@@ -22,6 +22,8 @@ export async function POST(request: Request) {
   const orderAmount = Number(body.order_amount);
   const customerRef = typeof body.customer_ref === "string" ? body.customer_ref : undefined;
   const apiSecret = typeof body.api_secret === "string" ? body.api_secret : undefined;
+  // Optional but strongly recommended: with it, a retried webhook is harmless
+  const externalOrderId = typeof body.order_id === "string" ? body.order_id : undefined;
 
   const store = await getReadyStore();
   try {
@@ -30,6 +32,7 @@ export async function POST(request: Request) {
       orderAmount,
       customerRef,
       apiSecret,
+      externalOrderId,
       source: "api",
     });
     return NextResponse.json({
@@ -41,6 +44,8 @@ export async function POST(request: Request) {
         influencer_commission: r.influencerCommission,
         platform_fee: r.platformFee,
         tier: r.tier,
+        status: r.status,
+        commission_available_at: r.holdUntil,
         created_at: r.createdAt,
       },
     });

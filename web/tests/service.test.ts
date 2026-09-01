@@ -213,3 +213,106 @@ describe("DomainError", () => {
     expect(e).toBeInstanceOf(Error);
   });
 });
+
+describe("redeemCode — idempotent orders", () => {
+  it("returns the original sale when the store retries the same order", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: false });
+    const call = () =>
+      redeemCode(store, {
+        code: code.code,
+        orderAmount: 250,
+        source: "api",
+        apiSecret: business.apiSecret,
+        externalOrderId: "SHOP-1001",
+      });
+    const first = await call();
+    const replay = await call();
+
+    expect(replay.id).toBe(first.id);
+    // The retry must not pay a second commission
+    expect(await store.listRedemptionsByBusiness(business.id)).toHaveLength(1);
+  });
+
+  it("replays even when the campaign would now reject a fresh sale", async () => {
+    // New-customers-only: the same buyer's second attempt normally fails, but a
+    // retry of an order already on file must still succeed.
+    const { store, business, code } = await world({ newCustomersOnly: true });
+    const call = () =>
+      redeemCode(store, {
+        code: code.code,
+        orderAmount: 120,
+        source: "api",
+        apiSecret: business.apiSecret,
+        customerRef: "buyer@x.com",
+        externalOrderId: "SHOP-2002",
+      });
+    const first = await call();
+    await expect(call()).resolves.toMatchObject({ id: first.id });
+  });
+
+  it("keeps separate orders separate", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: false });
+    const buy = (orderId: string) =>
+      redeemCode(store, {
+        code: code.code,
+        orderAmount: 100,
+        source: "api",
+        apiSecret: business.apiSecret,
+        externalOrderId: orderId,
+      });
+    const a = await buy("A");
+    const b = await buy("B");
+    expect(a.id).not.toBe(b.id);
+    expect(await store.listRedemptionsByBusiness(business.id)).toHaveLength(2);
+  });
+
+  it("still records every sale when the store sends no order id", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: false });
+    await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
+    await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
+    expect(await store.listRedemptionsByBusiness(business.id)).toHaveLength(2);
+  });
+
+  it("does not let a wrong secret read back an existing order", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: false });
+    await redeemCode(store, {
+      code: code.code,
+      orderAmount: 100,
+      source: "api",
+      apiSecret: business.apiSecret,
+      externalOrderId: "SECRET-ORDER",
+    });
+    await expect(
+      redeemCode(store, {
+        code: code.code,
+        orderAmount: 100,
+        source: "api",
+        apiSecret: "wrong",
+        externalOrderId: "SECRET-ORDER",
+      }),
+    ).rejects.toMatchObject({ code: "BAD_SECRET" });
+  });
+});
+
+describe("redeemCode — commission hold", () => {
+  it("puts every new commission on hold for the return window", async () => {
+    const { store, code } = await world({ newCustomersOnly: false });
+    const now = new Date("2026-09-01T12:00:00Z");
+    const r = await redeemCode(store, {
+      code: code.code,
+      orderAmount: 300,
+      source: "simulator",
+      now,
+    });
+    expect(r.status).toBe("held");
+    expect(r.holdUntil).toBe("2026-09-15T12:00:00.000Z");
+  });
+
+  it("lets a returned order be cancelled, voiding the commission", async () => {
+    const { store, influencer, code } = await world({ newCustomersOnly: false });
+    const r = await redeemCode(store, { code: code.code, orderAmount: 300, source: "simulator" });
+    await store.setRedemptionStatus(r.id, "cancelled");
+    const after = await store.listRedemptionsByInfluencer(influencer.id);
+    expect(after[0].status).toBe("cancelled");
+  });
+});
