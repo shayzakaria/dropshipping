@@ -525,6 +525,15 @@ export class SupabaseStore implements DataStore {
     );
   }
 
+  async rateLimitHit(key: string, windowSeconds: number): Promise<number> {
+    const { data, error } = await this.db.rpc("rate_limit_hit", {
+      p_key: key,
+      p_window_seconds: windowSeconds,
+    });
+    if (error) throw new Error(error.message);
+    return Number(data);
+  }
+
   async hasCustomerBoughtBefore(businessId: string, customerHash: string): Promise<boolean> {
     const n = await this.count(
       this.db

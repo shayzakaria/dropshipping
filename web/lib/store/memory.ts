@@ -197,4 +197,16 @@ export class MemoryStore implements DataStore {
     }
     return false;
   }
+
+  private readonly hits = new Map<string, number>();
+
+  async rateLimitHit(key: string, windowSeconds: number): Promise<number> {
+    // Single-process, so a Map is already atomic here. Same window arithmetic
+    // as the SQL function, so a limit behaves the same in tests as in production.
+    const windowStart = Math.floor(Date.now() / 1000 / windowSeconds) * windowSeconds;
+    const bucket = `${key}@${windowStart}`;
+    const next = (this.hits.get(bucket) ?? 0) + 1;
+    this.hits.set(bucket, next);
+    return next;
+  }
 }

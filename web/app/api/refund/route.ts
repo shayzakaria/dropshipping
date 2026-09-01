@@ -2,8 +2,16 @@ import { NextResponse } from "next/server";
 import { DomainError } from "@/lib/domain/logic";
 import { cancelRedemption } from "@/lib/domain/service";
 import { getReadyStore } from "@/lib/store";
+import { ANON_ATTEMPTS_PER_WINDOW, callerIp, checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
+
+function tooMany(retryAfter: number) {
+  return NextResponse.json(
+    { ok: false, code: "RATE_LIMITED", message: "יותר מדי בקשות. נסו שוב בעוד רגע" },
+    { status: 429, headers: { "retry-after": String(retryAfter) } },
+  );
+}
 
 /**
  * Called by the business's store when an order is refunded or cancelled, so
@@ -26,6 +34,10 @@ export async function POST(request: Request) {
   const redemptionId = typeof body.redemption_id === "string" ? body.redemption_id : undefined;
 
   const store = await getReadyStore();
+
+  const anon = await checkRateLimit(store, `refund:ip:${callerIp(request)}`, ANON_ATTEMPTS_PER_WINDOW);
+  if (!anon.ok) return tooMany(anon.retryAfter);
+
   const business = apiSecret ? await store.getBusinessByApiSecret(apiSecret) : null;
   if (!business) {
     return NextResponse.json(

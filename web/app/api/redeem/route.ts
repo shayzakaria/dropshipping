@@ -2,8 +2,22 @@ import { NextResponse } from "next/server";
 import { DomainError } from "@/lib/domain/logic";
 import { redeemCode } from "@/lib/domain/service";
 import { getReadyStore } from "@/lib/store";
+import {
+  ANON_ATTEMPTS_PER_WINDOW,
+  SECRET_CALLS_PER_WINDOW,
+  secretBucket,
+  callerIp,
+  checkRateLimit,
+} from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
+
+function tooMany(retryAfter: number) {
+  return NextResponse.json(
+    { ok: false, code: "RATE_LIMITED", message: "יותר מדי בקשות. נסו שוב בעוד רגע" },
+    { status: 429, headers: { "retry-after": String(retryAfter) } },
+  );
+}
 
 /**
  * The store-integration endpoint: a business's e-commerce checkout calls this
@@ -26,6 +40,23 @@ export async function POST(request: Request) {
   const externalOrderId = typeof body.order_id === "string" ? body.order_id : undefined;
 
   const store = await getReadyStore();
+
+  // Before the secret is looked at, so guessing at one costs the guesser.
+  const anon = await checkRateLimit(store, `redeem:ip:${callerIp(request)}`, ANON_ATTEMPTS_PER_WINDOW);
+  if (!anon.ok) return tooMany(anon.retryAfter);
+
+  // And per key, because a leaked secret is the expensive case: every call it
+  // makes bills a real business for a real commission. Keyed by a hash, so no
+  // extra lookup and no live secret in the counter table.
+  if (apiSecret) {
+    const perSecret = await checkRateLimit(
+      store,
+      `redeem:key:${secretBucket(apiSecret)}`,
+      SECRET_CALLS_PER_WINDOW,
+    );
+    if (!perSecret.ok) return tooMany(perSecret.retryAfter);
+  }
+
   try {
     const r = await redeemCode(store, {
       code,

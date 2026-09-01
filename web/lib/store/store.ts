@@ -65,4 +65,12 @@ export interface DataStore {
   countInfluencerRedemptionsInMonth(influencerId: string, at: Date): Promise<number>;
   countCampaignRedemptionsInMonth(campaignId: string, at: Date): Promise<number>;
   hasCustomerBoughtBefore(businessId: string, customerHash: string): Promise<boolean>;
+
+  /**
+   * Count one hit against `key` in the current fixed window and return the
+   * running total, including this hit. Must be atomic: serverless instances
+   * share no memory, so two of them reading 9 and both writing 10 is the
+   * failure this exists to prevent.
+   */
+  rateLimitHit(key: string, windowSeconds: number): Promise<number>;
 }
