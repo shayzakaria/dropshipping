@@ -606,3 +606,55 @@ describe("a new-customers-only campaign cannot run blind", () => {
     ).rejects.toMatchObject({ code: "BAD_SECRET" });
   });
 });
+
+describe("seeded example data is labelled as such", () => {
+  it("flags every account the seed creates", async () => {
+    const { seed } = await import("@/lib/store/seed");
+    const store = new MemoryStore();
+    await seed(store);
+    const users = await store.listUsers();
+    expect(users.length).toBeGreaterThan(0);
+    for (const u of users) expect(u.isDemo).toBe(true);
+    for (const u of users) {
+      if (u.role !== "business") continue;
+      const b = await store.getBusinessByOwner(u.id);
+      expect(b?.isDemo).toBe(true);
+    }
+  });
+
+  it("does not flag an account someone actually signs up with", async () => {
+    const store = new MemoryStore();
+    const user = await store.createUser({
+      name: "עסק אמיתי",
+      email: "real@x.com",
+      role: "business",
+    });
+    const business = await store.createBusiness({ ownerId: user.id, name: "חנות אמיתית" });
+    expect(user.isDemo).toBeFalsy();
+    expect(business.isDemo).toBeFalsy();
+  });
+
+  it("lets the public campaigns page tell examples from real listings", async () => {
+    const { seed } = await import("@/lib/store/seed");
+    const store = new MemoryStore();
+    await seed(store);
+    const owner = await store.createUser({ name: "עסק", email: "r@x.com", role: "influencer" });
+    const real = await store.createBusiness({ ownerId: owner.id, name: "חנות אמיתית" });
+    await store.createCampaign({
+      businessId: real.id,
+      title: "קמפיין אמיתי",
+      buyerDiscountPct: 10,
+      influencerPct: 7,
+      platformPct: 3,
+      newCustomersOnly: true,
+      status: "active",
+    });
+
+    const campaigns = await store.listActiveCampaigns();
+    const flags = await Promise.all(
+      campaigns.map(async (c) => (await store.getBusiness(c.businessId))?.isDemo ?? false),
+    );
+    expect(flags.filter(Boolean).length).toBe(2); // the two seeded campaigns
+    expect(flags.filter((f) => !f).length).toBe(1); // the real one
+  });
+});

@@ -27,6 +27,7 @@ type ProfileRow = {
   email: string;
   role: User["role"];
   auth_user_id: string | null;
+  is_demo: boolean | null;
   created_at: string;
 };
 type BusinessRow = {
@@ -35,6 +36,7 @@ type BusinessRow = {
   name: string;
   store_url: string | null;
   api_secret: string;
+  is_demo: boolean | null;
   created_at: string;
 };
 type CampaignRow = {
@@ -84,6 +86,7 @@ const toUser = (r: ProfileRow): User => ({
   email: r.email,
   role: r.role,
   authUserId: r.auth_user_id ?? undefined,
+  isDemo: r.is_demo ?? false,
   createdAt: r.created_at,
 });
 
@@ -93,6 +96,7 @@ const toBusiness = (r: BusinessRow): Business => ({
   name: r.name,
   storeUrl: r.store_url ?? undefined,
   apiSecret: r.api_secret,
+  isDemo: r.is_demo ?? false,
   createdAt: r.created_at,
 });
 
@@ -208,6 +212,7 @@ export class SupabaseStore implements DataStore {
         email,
         role: input.role,
         auth_user_id: input.authUserId ?? null,
+        is_demo: input.isDemo ?? false,
       })
       .select()
       .single<ProfileRow>();
@@ -257,7 +262,12 @@ export class SupabaseStore implements DataStore {
   ): Promise<Business> {
     const { data, error } = await this.db
       .from("businesses")
-      .insert({ owner_id: input.ownerId, name: input.name, store_url: input.storeUrl ?? null })
+      .insert({
+        owner_id: input.ownerId,
+        name: input.name,
+        store_url: input.storeUrl ?? null,
+        is_demo: input.isDemo ?? false,
+      })
       .select()
       .single<BusinessRow>();
     if (error) throw new Error(error.message);

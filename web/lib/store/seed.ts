@@ -5,28 +5,37 @@ import { redeemCode } from "../domain/service";
  * Seeds a believable demo world so the deployed app is fully explorable:
  * one business with two campaigns, two influencers with codes, and a month
  * of redemptions that puts one influencer in the SILVER tier.
+ *
+ * Every account it creates is flagged isDemo, because the deployed site is
+ * public. A visitor who reads "סטודיו דנה" as a real customer is being told
+ * the platform is busier than it is, and that is the one lie a marketplace
+ * cannot afford to tell the first businesses it is courting.
  */
 export async function seed(store: MemoryStore): Promise<void> {
   const dana = await store.createUser({
     name: "דנה לוי",
     email: "dana@demo.co.il",
     role: "business",
+    isDemo: true,
   });
   const noa = await store.createUser({
     name: "נועה מזרחי",
     email: "noa@demo.co.il",
     role: "influencer",
+    isDemo: true,
   });
   const omer = await store.createUser({
     name: "עומר אזולאי",
     email: "omer@demo.co.il",
     role: "influencer",
+    isDemo: true,
   });
 
   const business = await store.createBusiness({
     ownerId: dana.id,
     name: "סטודיו דנה — אופנה ישראלית",
     storeUrl: "https://dana-fashion.example",
+    isDemo: true,
   });
 
   const fall = await store.createCampaign({

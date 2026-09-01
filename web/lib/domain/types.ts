@@ -12,6 +12,12 @@ export interface User {
    * which therefore cannot sign in once demo mode is off.
    */
   authUserId?: string;
+  /**
+   * Seeded example data, not a real person or business. Every screen that can
+   * show one has to say so: the site is public, and a visitor who cannot tell
+   * an example from a customer is being misled about how busy the platform is.
+   */
+  isDemo?: boolean;
   createdAt: string;
 }
 
@@ -22,6 +28,8 @@ export interface Business {
   storeUrl?: string;
   /** Secret used by the business's store (plugin/webhook) to authenticate redemption API calls */
   apiSecret: string;
+  /** Seeded example data — see User.isDemo */
+  isDemo?: boolean;
   createdAt: string;
 }
 

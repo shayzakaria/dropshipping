@@ -86,7 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <footer className="mx-auto max-w-5xl px-4 pb-8 pt-6">
           <div className="perforation pt-4 text-center text-xs text-mut">
             {isPersistent()
-              ? "גרסת דמו · הנתונים נשמרים בבסיס נתונים אמיתי (Supabase)"
+              ? "גרסה מוקדמת · חשבונות ומכירות נשמרים באמת. תוכן המסומן \u201cדוגמה\u201d אינו עסק אמיתי."
               : "גרסת דמו מקומית · הנתונים בזיכרון בלבד"}
           </div>
         </footer>
