@@ -82,8 +82,12 @@ export function Badge({
   );
 }
 
-export const btnPrimary =
-  "inline-flex -rotate-1 items-center justify-center gap-2 rounded-lg bg-deal px-4 py-2 text-sm font-bold text-ink shadow-[0_1px_2px_rgba(34,29,21,0.25),0_4px_10px_rgba(201,58,6,0.25)] transition hover:rotate-0 hover:bg-[#ff5a17] disabled:opacity-50";
+const btnPrimaryBase =
+  "inline-flex items-center justify-center gap-2 rounded-lg bg-deal px-4 py-2 text-sm font-bold text-ink shadow-[0_1px_2px_rgba(34,29,21,0.25),0_4px_10px_rgba(201,58,6,0.25)] transition hover:bg-[#ff5a17] disabled:opacity-50";
+/** מדבקה מוטה קלות — לכפתורי CTA משובצים בתוכן */
+export const btnPrimary = `${btnPrimaryBase} -rotate-1 hover:rotate-0`;
+/** גרסה ישרה לכפתורי טפסים ברוחב מלא, שם הטיה נקראת כחוסר יישור */
+export const btnPrimaryWide = `${btnPrimaryBase} w-full`;
 export const btnGhost =
   "inline-flex items-center justify-center gap-2 rounded-lg border border-ink/30 bg-label px-4 py-2 text-sm font-semibold text-ink shadow-[0_1px_2px_rgba(34,29,21,0.08)] transition hover:bg-paper";
 export const btnStamp =

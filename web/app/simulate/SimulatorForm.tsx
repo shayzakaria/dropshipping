@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { simulatePurchase, type FormState } from "../actions";
 import { Barcode } from "@/components/Barcode";
 import { CheckIcon } from "@/components/icons";
-import { btnPrimary, inputCls } from "@/components/ui";
+import { btnPrimaryWide, inputCls } from "@/components/ui";
 import { formatILS } from "@/lib/format";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -37,7 +37,7 @@ export function SimulatorForm({ demoCode }: { demoCode?: string }) {
           <span className="font-medium">אימייל הקונה (לבדיקת לקוח חדש והגנה מהונאות)</span>
           <input name="customerRef" type="email" placeholder="buyer@example.com" className={`${inputCls} mt-1`} dir="ltr" />
         </label>
-        <button type="submit" disabled={pending} className={`${btnPrimary} w-full`}>
+        <button type="submit" disabled={pending} className={btnPrimaryWide}>
           {pending ? "מחשב…" : "ביצוע קנייה עם הקוד"}
         </button>
       </form>

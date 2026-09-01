@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-01T00:00:00Z",
+  "title": "Design System: BOOST",
+  "extensions": {
+    "colorMeta": {
+      "kraft": { "role": "neutral", "displayName": "קרטון קראפט", "canonical": "#e9dcc1", "tonalRamp": ["oklch(15% 0.035 90)", "oklch(26% 0.035 90)", "oklch(38% 0.035 90)", "oklch(49% 0.035 90)", "oklch(60% 0.035 90)", "oklch(72% 0.035 90)", "oklch(83% 0.035 90)", "oklch(95% 0.035 90)"] },
+      "paper": { "role": "neutral", "displayName": "נייר אריזה", "canonical": "#f4eddc", "tonalRamp": ["oklch(15% 0.02 90)", "oklch(26% 0.02 90)", "oklch(38% 0.02 90)", "oklch(49% 0.02 90)", "oklch(60% 0.02 90)", "oklch(72% 0.02 90)", "oklch(83% 0.02 90)", "oklch(95% 0.02 90)"] },
+      "label": { "role": "neutral", "displayName": "תווית לבנה", "canonical": "#fffef8", "tonalRamp": ["oklch(15% 0.008 100)", "oklch(26% 0.008 100)", "oklch(38% 0.008 100)", "oklch(49% 0.008 100)", "oklch(60% 0.008 100)", "oklch(72% 0.008 100)", "oklch(83% 0.008 100)", "oklch(95% 0.008 100)"] },
+      "ink": { "role": "neutral", "displayName": "דיו חותמת", "canonical": "#221d15", "tonalRamp": ["oklch(15% 0.02 75)", "oklch(26% 0.02 75)", "oklch(38% 0.02 75)", "oklch(49% 0.02 75)", "oklch(60% 0.02 75)", "oklch(72% 0.02 75)", "oklch(83% 0.02 75)", "oklch(95% 0.02 75)"] },
+      "mut": { "role": "neutral", "displayName": "חום-דיו משני", "canonical": "#5d5040", "tonalRamp": ["oklch(15% 0.035 75)", "oklch(26% 0.035 75)", "oklch(38% 0.035 75)", "oklch(49% 0.035 75)", "oklch(60% 0.035 75)", "oklch(72% 0.035 75)", "oklch(83% 0.035 75)", "oklch(95% 0.035 75)"] },
+      "tape": { "role": "neutral", "displayName": "נייר דבק", "canonical": "#d9c69c", "tonalRamp": ["oklch(15% 0.06 90)", "oklch(26% 0.06 90)", "oklch(38% 0.06 90)", "oklch(49% 0.06 90)", "oklch(60% 0.06 90)", "oklch(72% 0.06 90)", "oklch(83% 0.06 90)", "oklch(95% 0.06 90)"] },
+      "deal": { "role": "primary", "displayName": "כתום מדבקת-מבצע", "canonical": "#f4490b", "tonalRamp": ["oklch(15% 0.2 35)", "oklch(26% 0.2 35)", "oklch(38% 0.2 35)", "oklch(49% 0.2 35)", "oklch(60% 0.2 35)", "oklch(72% 0.2 35)", "oklch(83% 0.2 35)", "oklch(95% 0.2 35)"] },
+      "deal-deep": { "role": "primary", "displayName": "כתום עמוק (קריא)", "canonical": "#c93a06", "tonalRamp": ["oklch(15% 0.18 35)", "oklch(26% 0.18 35)", "oklch(38% 0.18 35)", "oklch(49% 0.18 35)", "oklch(60% 0.18 35)", "oklch(72% 0.18 35)", "oklch(83% 0.18 35)", "oklch(95% 0.18 35)"] },
+      "mark": { "role": "secondary", "displayName": "צהוב מרקר", "canonical": "#ffc93c", "tonalRamp": ["oklch(15% 0.15 85)", "oklch(26% 0.15 85)", "oklch(38% 0.15 85)", "oklch(49% 0.15 85)", "oklch(60% 0.15 85)", "oklch(72% 0.15 85)", "oklch(83% 0.15 85)", "oklch(95% 0.15 85)"] },
+      "ok": { "role": "semantic-success", "displayName": "ירוק אישור", "canonical": "#1e6e38", "tonalRamp": ["oklch(15% 0.1 150)", "oklch(26% 0.1 150)", "oklch(38% 0.1 150)", "oklch(49% 0.1 150)", "oklch(60% 0.1 150)", "oklch(72% 0.1 150)", "oklch(83% 0.1 150)", "oklch(95% 0.1 150)"] },
+      "okbg": { "role": "semantic-success", "displayName": "רקע אישור", "canonical": "#e3efe2", "tonalRamp": ["oklch(15% 0.03 150)", "oklch(26% 0.03 150)", "oklch(38% 0.03 150)", "oklch(49% 0.03 150)", "oklch(60% 0.03 150)", "oklch(72% 0.03 150)", "oklch(83% 0.03 150)", "oklch(95% 0.03 150)"] },
+      "err": { "role": "semantic-error", "displayName": "אדום דחייה", "canonical": "#b3301c", "tonalRamp": ["oklch(15% 0.15 30)", "oklch(26% 0.15 30)", "oklch(38% 0.15 30)", "oklch(49% 0.15 30)", "oklch(60% 0.15 30)", "oklch(72% 0.15 30)", "oklch(83% 0.15 30)", "oklch(95% 0.15 30)"] },
+      "errbg": { "role": "semantic-error", "displayName": "רקע דחייה", "canonical": "#f7e4dd", "tonalRamp": ["oklch(15% 0.03 30)", "oklch(26% 0.03 30)", "oklch(38% 0.03 30)", "oklch(49% 0.03 30)", "oklch(60% 0.03 30)", "oklch(72% 0.03 30)", "oklch(83% 0.03 30)", "oklch(95% 0.03 30)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Karantina — כותרות", "purpose": "כל הכותרות: hero 3.3rem→5rem, h1 עמוד 3.75rem, סקשן 3rem, SectionTitle 1.875rem, ערכי סטט 2.25rem. תמיד leading-none ומשקל 400, לעולם לא בטקסט רץ." },
+      "body": { "displayName": "Rubik — גוף", "purpose": "ברירת המחדל של הממשק (0.875rem); מטא 0.75rem בצבע mut; כותרות כרטיס 1.125rem/700." },
+      "lede": { "displayName": "Rubik Light — פסקאות הסבר", "purpose": "פסקאות מתחת לכותרות: משקל 300, leading-relaxed, 1rem–1.125rem." },
+      "mono": { "displayName": "JetBrains Mono — קודים וכסף", "purpose": "כל סכום וכל קוד קופון: dir=ltr, tabular-nums; קודים ב-tracking-widest 600–700." },
+      "wordmark": { "displayName": "Rubik ExtraBold — וורדמארק", "purpose": "\"Boost\" הלטיני בכותרת: 800, uppercase, 26px, tracking-tight. לא Karantina." }
+    },
+    "shadows": [
+      { "name": "label-shadow", "value": "0 1px 2px rgba(34,29,21,0.09), 0 5px 14px rgba(34,29,21,0.07)", "purpose": "צל התווית — כל label-card." },
+      { "name": "sticker-shadow", "value": "0 1px 2px rgba(34,29,21,0.25), 0 4px 10px rgba(201,58,6,0.25)", "purpose": "כפתור primary — צל דיו קצר + הילה כתומה עמומה." },
+      { "name": "micro-shadow", "value": "0 1px 2px rgba(34,29,21,0.25)", "purpose": "מדבקת הנתון המודגש ב-StatStrip." },
+      { "name": "tape-shadow", "value": "0 1px 3px rgba(34,29,21,0.12)", "purpose": "פסי נייר-דבק." },
+      { "name": "ghost-shadow", "value": "0 1px 2px rgba(34,29,21,0.08)", "purpose": "כפתור רפאים." }
+    ],
+    "motion": [
+      { "name": "settle", "value": "settle 0.8s cubic-bezier(0.16, 1, 0.3, 1) both — from rotate(-4.5deg) translateY(-14px) to rotate(-1.5deg) translateY(0)", "purpose": "הרגע המונפש היחיד: התווית נדבקת למקומה. כבוי תחת prefers-reduced-motion." },
+      { "name": "transition-default", "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "מעברי hover של כפתורים וקישורים (Tailwind transition)." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Sticker Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "CTA משובץ בתוכן: מדבקת מבצע כתומה עם טקסט דיו, מוטה -1 מעלות ומתיישרת ב-hover.",
+      "html": "<button class=\"ds-btn-primary\">מתחילים בחינם</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--color-deal, #f4490b); color: var(--color-ink, #221d15); padding: 8px 16px; border: none; border-radius: 8px; font-family: Rubik, system-ui, sans-serif; font-size: 0.875rem; font-weight: 700; box-shadow: 0 1px 2px rgba(34,29,21,0.25), 0 4px 10px rgba(201,58,6,0.25); transform: rotate(-1deg); transition: background 150ms, transform 150ms; cursor: pointer; } .ds-btn-primary:hover { background: #ff5a17; transform: rotate(0deg); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-deal, #f4490b); outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; }"
+    },
+    {
+      "name": "Wide Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "ה-submit של טפסים: אותה מדבקה, רוחב מלא וללא הטיה.",
+      "html": "<button class=\"ds-btn-primary-wide\">הרשמה וכניסה</button>",
+      "css": ".ds-btn-primary-wide { display: inline-flex; width: 100%; align-items: center; justify-content: center; gap: 8px; background: var(--color-deal, #f4490b); color: var(--color-ink, #221d15); padding: 8px 16px; border: none; border-radius: 8px; font-family: Rubik, system-ui, sans-serif; font-size: 0.875rem; font-weight: 700; box-shadow: 0 1px 2px rgba(34,29,21,0.25), 0 4px 10px rgba(201,58,6,0.25); transition: background 150ms; cursor: pointer; } .ds-btn-primary-wide:hover { background: #ff5a17; } .ds-btn-primary-wide:focus-visible { outline: 2px solid var(--color-deal, #f4490b); outline-offset: 2px; } .ds-btn-primary-wide:disabled { opacity: 0.5; }"
+    },
+    {
+      "name": "Stamp Button",
+      "kind": "button",
+      "refersTo": "button-stamp",
+      "description": "פעולה משנית חזקה: חותמת דיו עם טקסט תווית.",
+      "html": "<button class=\"ds-btn-stamp\">לנסות קנייה עם קוד</button>",
+      "css": ".ds-btn-stamp { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--color-ink, #221d15); color: var(--color-label, #fffef8); padding: 8px 16px; border: none; border-radius: 8px; font-family: Rubik, system-ui, sans-serif; font-size: 0.875rem; font-weight: 700; transition: background 150ms; cursor: pointer; } .ds-btn-stamp:hover { background: rgba(34,29,21,0.85); } .ds-btn-stamp:focus-visible { outline: 2px solid var(--color-deal, #f4490b); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "פעולת ניהול שקטה: תווית עם גבול דיו.",
+      "html": "<button class=\"ds-btn-ghost\">השהיית קמפיין</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--color-label, #fffef8); color: var(--color-ink, #221d15); border: 1px solid rgba(34,29,21,0.3); padding: 8px 16px; border-radius: 8px; font-family: Rubik, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; box-shadow: 0 1px 2px rgba(34,29,21,0.08); transition: background 150ms; cursor: pointer; } .ds-btn-ghost:hover { background: var(--color-paper, #f4eddc); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--color-deal, #f4490b); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "שדה קלט על תווית: גבול דיו שמתחלף ל-deal בפוקוס; תווית שדה קטנה מעל.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">שם הקמפיין</span><input class=\"ds-input\" placeholder=\"למשל: השקת קולקציית חורף\" /></label>",
+      "css": ".ds-field { display: block; direction: rtl; font-family: Rubik, system-ui, sans-serif; font-size: 0.875rem; color: var(--color-ink, #221d15); } .ds-field-label { font-weight: 500; } .ds-input { width: 100%; margin-top: 4px; background: var(--color-label, #fffef8); color: var(--color-ink, #221d15); border: 1px solid rgba(34,29,21,0.3); border-radius: 8px; padding: 8px 12px; font-family: inherit; font-size: 0.875rem; } .ds-input::placeholder { color: var(--color-mut, #5d5040); } .ds-input:focus { border-color: var(--color-deal, #f4490b); outline: none; }"
+    },
+    {
+      "name": "Badges",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "שלושת גווני ה-Badge: רגיל, הצלחה, אזהרה. תמיד pill עם גבול.",
+      "html": "<div class=\"ds-badges\"><span class=\"ds-badge\">12 משפיענים</span><span class=\"ds-badge ds-badge-success\">פעיל</span><span class=\"ds-badge ds-badge-warning\">מושהה</span></div>",
+      "css": ".ds-badges { display: flex; gap: 8px; direction: rtl; } .ds-badge { display: inline-block; border: 1px solid rgba(34,29,21,0.25); background: var(--color-label, #fffef8); color: var(--color-ink, #221d15); border-radius: 999px; padding: 2px 10px; font-family: Rubik, system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; } .ds-badge-success { border-color: rgba(30,110,56,0.4); background: var(--color-okbg, #e3efe2); color: var(--color-ok, #1e6e38); } .ds-badge-warning { border-color: rgba(201,58,6,0.4); background: rgba(255,201,60,0.3); color: var(--color-deal-deep, #c93a06); }"
+    },
+    {
+      "name": "Split Label",
+      "kind": "custom",
+      "refersTo": "label-card",
+      "description": "רכיב החתימה: תווית פיצול כספי עם נייר-דבק, ברקוד, שורות mono, ניקוב ושורה תחתונה.",
+      "html": "<div class=\"ds-split\"><div class=\"ds-split-tape\"></div><div class=\"ds-split-head\"><div><div class=\"ds-split-kicker\">קמפיין לדוגמה</div><div class=\"ds-split-name\">story layers · הדפסות תלת-ממד</div></div><div class=\"ds-split-code\"><svg viewBox=\"0 0 60 22\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><rect x=\"0\" width=\"2\" height=\"22\"/><rect x=\"4\" width=\"1\" height=\"22\"/><rect x=\"7\" width=\"3\" height=\"22\"/><rect x=\"12\" width=\"1\" height=\"22\"/><rect x=\"15\" width=\"2\" height=\"22\"/><rect x=\"20\" width=\"1\" height=\"22\"/><rect x=\"23\" width=\"3\" height=\"22\"/><rect x=\"28\" width=\"2\" height=\"22\"/><rect x=\"33\" width=\"1\" height=\"22\"/><rect x=\"36\" width=\"2\" height=\"22\"/><rect x=\"41\" width=\"3\" height=\"22\"/><rect x=\"46\" width=\"1\" height=\"22\"/><rect x=\"49\" width=\"2\" height=\"22\"/><rect x=\"54\" width=\"1\" height=\"22\"/><rect x=\"57\" width=\"3\" height=\"22\"/></svg><div class=\"ds-split-codetext\">NOA4-K2PG</div></div></div><dl class=\"ds-split-rows\"><div class=\"ds-split-row\"><dt class=\"ds-split-mut\">סכום הקנייה</dt><dd>₪300.00</dd></div><div class=\"ds-split-row\"><dt>הנחה לקונה <span class=\"ds-split-mut\">(10%)</span></dt><dd>₪30.00-</dd></div><div class=\"ds-split-row\"><dt>עמלה למשפיענית <span class=\"ds-split-mut\">(7%)</span></dt><dd class=\"ds-split-deal\">₪21.00</dd></div><div class=\"ds-split-row\"><dt>דמי פלטפורמה <span class=\"ds-split-mut\">(3%)</span></dt><dd>₪9.00</dd></div></dl><div class=\"ds-split-perf\"></div><div class=\"ds-split-total\"><span class=\"ds-split-bold\">העסק שילם ₪60.00</span><span class=\"ds-split-mut\">רק כי המכירה קרתה</span></div></div>",
+      "css": ".ds-split { position: relative; direction: rtl; max-width: 420px; background: var(--color-label, #fffef8); border: 1px solid rgba(34,29,21,0.22); border-radius: 10px; box-shadow: 0 1px 2px rgba(34,29,21,0.09), 0 5px 14px rgba(34,29,21,0.07); transform: rotate(-1.5deg); font-family: Rubik, system-ui, sans-serif; color: var(--color-ink, #221d15); margin-top: 16px; } .ds-split-tape { position: absolute; top: -12px; right: 40px; height: 28px; width: 96px; transform: rotate(-3deg); background: color-mix(in srgb, var(--color-tape, #d9c69c) 78%, transparent); border-left: 1px solid rgba(34,29,21,0.12); border-right: 1px solid rgba(34,29,21,0.12); box-shadow: 0 1px 3px rgba(34,29,21,0.12); } .ds-split-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 2px dashed rgba(34,29,21,0.3); padding: 12px 20px; } .ds-split-kicker { font-size: 11px; font-weight: 600; color: var(--color-mut, #5d5040); } .ds-split-name { font-size: 0.875rem; font-weight: 700; } .ds-split-code { width: 96px; } .ds-split-code svg { width: 100%; height: 22px; fill: currentColor; display: block; } .ds-split-codetext { margin-top: 2px; text-align: center; direction: ltr; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; } .ds-split-rows { padding: 16px 20px; margin: 0; font-size: 0.875rem; font-variant-numeric: tabular-nums; } .ds-split-row { display: flex; align-items: baseline; justify-content: space-between; padding: 6px 0; } .ds-split-row dd { margin: 0; direction: ltr; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 600; } .ds-split-deal { color: var(--color-deal-deep, #c93a06); font-weight: 700; } .ds-split-mut { color: var(--color-mut, #5d5040); font-weight: 400; } .ds-split-perf { margin: 0 20px; border-top: 2px dashed rgba(34,29,21,0.28); } .ds-split-total { display: flex; align-items: baseline; justify-content: space-between; padding: 16px 20px; } .ds-split-bold { font-weight: 700; } .ds-split-total .ds-split-mut { font-size: 0.875rem; }"
+    },
+    {
+      "name": "Stat Sticker",
+      "kind": "custom",
+      "refersTo": "label-card",
+      "description": "תא StatStrip: תווית קטנה, ערך Karantina, והנתון המרכזי כמדבקת מחיר כתומה מוטה.",
+      "html": "<div class=\"ds-stats\"><div class=\"ds-stat\"><div class=\"ds-stat-label\">מכירות החודש</div><div class=\"ds-stat-value\">14</div><div class=\"ds-stat-sub\">מחזור: ₪4,200</div></div><div class=\"ds-stat\"><div class=\"ds-stat-label\">עלות שיווק כוללת</div><div class=\"ds-stat-value\"><span class=\"ds-stat-sticker\">₪840</span></div><div class=\"ds-stat-sub\">20% מהמחזור — קבוע וידוע מראש</div></div></div>",
+      "css": ".ds-stats { display: grid; grid-template-columns: 1fr 1fr; direction: rtl; background: var(--color-label, #fffef8); border: 1px solid rgba(34,29,21,0.22); border-radius: 10px; box-shadow: 0 1px 2px rgba(34,29,21,0.09), 0 5px 14px rgba(34,29,21,0.07); overflow: hidden; font-family: Rubik, system-ui, sans-serif; color: var(--color-ink, #221d15); } .ds-stat { padding: 16px; } .ds-stat + .ds-stat { border-inline-start: 1px dashed rgba(34,29,21,0.25); } .ds-stat-label { font-size: 13px; font-weight: 500; color: var(--color-mut, #5d5040); } .ds-stat-value { margin-top: 6px; font-family: Karantina, Rubik, sans-serif; font-size: 2.25rem; line-height: 1; font-variant-numeric: tabular-nums; } .ds-stat-sticker { display: inline-block; transform: rotate(-2deg); background: var(--color-deal, #f4490b); color: var(--color-ink, #221d15); border-radius: 6px; padding: 4px 10px; box-shadow: 0 1px 2px rgba(34,29,21,0.25); } .ds-stat-sub { margin-top: 6px; font-size: 0.75rem; color: var(--color-mut, #5d5040); }"
+    },
+    {
+      "name": "Marker Headline",
+      "kind": "custom",
+      "refersTo": "display",
+      "description": "כותרת Karantina עם הדגשת מרקר צהוב על מילות המפתח — ההדגשה היחידה המותרת בכותרות.",
+      "html": "<h1 class=\"ds-headline\">קוד קופון אחד.<br/><span class=\"ds-mark-hl\">כולם מרוויחים.</span></h1>",
+      "css": ".ds-headline { direction: rtl; font-family: Karantina, Rubik, sans-serif; font-weight: 400; font-size: 4rem; line-height: 1; color: var(--color-ink, #221d15); margin: 0; } .ds-mark-hl { background: linear-gradient(180deg, transparent 8%, var(--color-mark, #ffc93c) 8%, var(--color-mark, #ffc93c) 88%, transparent 88%); padding-inline: 0.08em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "מדבקת המחיר",
+    "overview": "BOOST היא פלטפורמת חלוקת-הכנסה, והממשק מציג אותה כמה שהיא באמת: תווית מחיר על כל מכירה. העולם הוא שולחן אריזה — קרטון קראפט עם מרקם גלי עדין כרקע, תוויות משלוח לבנות בגבול דיו כמשטחי התוכן, מדבקת-מבצע כתומה לנתון או לפעולה החשובה ביותר, מרקר צהוב על מילות המפתח בכותרות, קווי ניקוב מקווקווים כחוצצים, ברקודים ליד כל קוד קופון, ופסי נייר-דבק שמצמידים תוויות חשובות. הכול חם: אפילו הטקסט המשני הוא חום-דיו, לא אפור.\n\nהצפיפות בינונית-אוורירית: קונטיינר צר (64rem), משטח תווית אחד גדול עדיף על הרבה כרטיסים קטנים. העולם מסרב במוצהר ל-hero עם גרדיאנט כהה של SaaS ולגריד כרטיסים שווים — נתונים שווי-מעמד נארזים כתווית אחת עם חוצצי ניקוב, והנתון המרכזי מקבל מדבקה כתומה מוטה. הכיוון הוא RTL עברי מלא (dir=\"rtl\"), וכסף וקודים תמיד ב-mono, LTR, ספרות טבלאיות.",
+    "keyCharacteristics": [
+      "קרטון קראפט (#e9dcc1) עם פסי גלי אנכיים עדינים כרקע — לעולם לא רקע כהה או גרדיאנט.",
+      "תוויות לבנות (#fffef8) בגבול דיו שקוף כמשטח היחיד לתוכן.",
+      "כתום מדבקת-מבצע (#f4490b) עם טקסט דיו — לעולם לא טקסט לבן על הכתום.",
+      "מרקר צהוב (#ffc93c) כהדגשה היחידה בתוך כותרות Karantina.",
+      "ניקוב מקווקו, ברקוד דטרמיניסטי ונייר-דבק כאביזרי העולם הקבועים.",
+      "רוטציות קלות (עד ±6°) שגורמות לרכיבים \"מודבקים\" להרגיש פיזיים.",
+      "אנימציה אחת בלבד לעמוד: התווית \"נדבקת\" (settle)."
+    ],
+    "rules": [
+      { "name": "חוק דיו-על-כתום", "body": "על רקע deal הטקסט הוא תמיד דיו (#221d15), לעולם לא לבן; טקסט משני על כתום הוא דיו ב-80%. זה מה שגורם לכתום להיראות כמדבקה מודפסת ולא ככפתור SaaS.", "section": "colors" },
+      { "name": "חוק המדבקה האחת", "body": "מדבקת deal אחת לכל היותר לרצועת נתונים — הנתון שהוא \"השורה התחתונה\" (עלות שיווק לעסק, עמלות למשפיען). השאר נשארים דיו על תווית.", "section": "colors" },
+      { "name": "חוק סולם-הדיו", "body": "אין גבולות אפורים: כל הגבולות הם דיו בשקיפות — 10% לשורות טבלה, 22% למסגרת תווית, 25%–30% לקווקוו וגבולות שליטה, 40% לקווקוו על רקע כתום.", "section": "colors" },
+      { "name": "חוק המספר החד", "body": "כל ערך כספי וכל קוד מוצגים ב-JetBrains Mono עם dir=\"ltr\" וספרות טבלאיות (.tabular / font-variant-numeric: tabular-nums). סכומים שליליים מוצגים כהנחה עם מינוס דרך formatILS(-x).", "section": "typography" },
+      { "name": "חוק קרנטינה-לכותרות-בלבד", "body": "Karantina מופיעה רק ב-1.875rem ומעלה עם leading-none, ותמיד במשקל הרגיל (400) — לעולם לא בטקסט רץ, בכפתורים או במידות קטנות.", "section": "typography" },
+      { "name": "חוק המנשר", "body": "נתונים או שלבים שווי-מעמד לא מקבלים כרטיסים נפרדים: הם נארזים בתווית אחת (label-card) עם חוצצי ניקוב מקווקווים ביניהם (StatStrip, \"איך זה עובד\", טבלאות). כרטיס נפרד מגיע רק לישות עצמאית (קמפיין, קוד).", "section": "layout" },
+      { "name": "חוק צל-הנייר", "body": "כל צל הוא rgba של דיו (34,29,21) בשקיפות 7%–25% ובמרחק קטן. אין shadow-xl, אין צל צבעוני מלבד הילת ה-deal מתחת לכפתור הראשי.", "section": "elevation" },
+      { "name": "חוק ההטיה", "body": "רוטציה היא סימן ש\"דבר הודבק כאן\": מותרת רק לרכיבי מדבקה/תווית משובצים בתוכן, בטווח ±6° ומטה. אלמנט טופס רחב (submit ברוחב מלא) לעולם לא מוטה — שם הטיה נקראת כחוסר יישור, לא כאופי.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do לפתוח כל עמוד ב-h1 Karantina leading-none (3.75rem בעמודי אפליקציה) עם שורת הקשר 0.875rem בצבע mut מתחתיו.",
+      "Do להשתמש ב-.mark-hl (מרקר צהוב) כהדגשה היחידה בתוך כותרות — על מילות המפתח בלבד.",
+      "Do לרשום כל סכום וקוד ב-JetBrains Mono עם dir=\"ltr\" ו-.tabular, ועמלת משפיען תמיד ב-deal-deep מודגש.",
+      "Do להצמיד ברקוד (Barcode עם seed הקוד) לכל קוד קופון שמוצג כתווית.",
+      "Do לחצוץ בין אזורים בקו ניקוב מקווקו (דיו 25%–30%) — לא בקו מלא ולא ברווח בלבד.",
+      "Do לשמור על הטיה קלה ב-CTA משובץ (-1° שמתיישר ב-hover) ולהשתמש בגרסה הישרה btnPrimaryWide ב-submit של טפסים.",
+      "Do לכבד prefers-reduced-motion: אנימציית settle כבויה תחתיו."
+    ],
+    "donts": [
+      "Don't hero או סקשן עם גרדיאנט כהה, רקע שחור או זכוכית — הרקע הוא תמיד קרטון עם מרקם.",
+      "Don't גריד כרטיסים שווים לסטטיסטיקות, שלבים או פיצ'רים — זה תמיד מנשר אחד עם חוצצי ניקוב ומדבקה אחת מודגשת.",
+      "Don't טקסט לבן על הכתום (deal) — תמיד דיו; ו-deal לטקסט קטן — לשם יש את deal-deep.",
+      "Don't אימוג'י או ספריית אייקונים חיצונית — רק סט ה-SVG הפנימי (קו 1.8, קצוות מעוגלים).",
+      "Don't טקסט בגרדיאנט או אפקטי צבע על כותרות — ההדגשה היחידה היא המרקר הצהוב.",
+      "Don't אפורים ניטרליים (gray/slate/zinc) לטקסט, גבולות או רקעים — הנייטרלים הם חומי-דיו: mut לטקסט, שקיפויות דיו לגבולות.",
+      "Don't יותר מאנימציית כניסה אחת לעמוד; אין parallax, אין stagger, אין רכיבים מרחפים.",
+      "Don't Karantina בטקסט רץ, בכפתורים או מתחת ל-1.875rem."
+    ]
+  }
+}

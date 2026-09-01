@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { register, type FormState } from "../actions";
 import { MegaphoneIcon, StoreIcon } from "@/components/icons";
-import { btnPrimary, inputCls } from "@/components/ui";
+import { btnPrimaryWide, inputCls } from "@/components/ui";
 
 export function RegisterForm() {
   const [state, formAction, pending] = useActionState<FormState, FormData>(register, {});
@@ -53,7 +53,7 @@ export function RegisterForm() {
         </>
       )}
       {state.error ? <p className="text-sm font-medium text-err">{state.error}</p> : null}
-      <button type="submit" disabled={pending} className={`${btnPrimary} w-full`}>
+      <button type="submit" disabled={pending} className={btnPrimaryWide}>
         {pending ? "רגע…" : "הרשמה וכניסה"}
       </button>
     </form>
