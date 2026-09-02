@@ -23,16 +23,34 @@ export function ShareCode({
   storeUrl?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
+  // Built in the browser so it works on any domain the site is served from.
+  const trackedLink =
+    typeof window === "undefined" ? "" : `${window.location.origin}/r/${code}`;
+
+  // The link replaces the bare shop address: it carries the coupon into the
+  // cart, so a reader who never types the code still counts as this
+  // influencer's sale, and the click registers either way.
   const message = [
     `${campaignTitle} · ${businessName}`,
     `${discountPct}% הנחה עם הקוד ${code}`,
-    storeUrl ?? "",
+    trackedLink || storeUrl || "",
     "",
     "פרסומת · אני מקבל/ת עמלה על רכישות דרך הקוד",
   ]
     .filter(Boolean)
     .join("\n");
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(trackedLink);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 1800);
+    } catch {
+      // Clipboard unavailable — the link is shown in full below
+    }
+  };
 
   const copy = async () => {
     try {
@@ -58,7 +76,7 @@ export function ShareCode({
         <button
           type="button"
           onClick={copy}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-ink/30 bg-label px-3 py-1.5 text-xs font-semibold transition hover:bg-paper"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-ink/30 bg-label px-3 text-xs font-semibold transition hover:bg-paper"
         >
           {copied ? (
             <>
@@ -68,7 +86,28 @@ export function ShareCode({
             "העתקת הודעה מוכנה"
           )}
         </button>
+        <button
+          type="button"
+          onClick={copyLink}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-ink/30 bg-label px-3 text-xs font-semibold transition hover:bg-paper"
+        >
+          {copiedLink ? (
+            <>
+              <CheckIcon className="h-3 w-3 text-ok" /> הועתק
+            </>
+          ) : (
+            "העתקת הלינק בלבד"
+          )}
+        </button>
       </div>
+      <p className="mt-2 text-[11px] leading-relaxed text-mut">
+        הלינק שלכם:{" "}
+        <code className="font-mono text-ink" dir="ltr">
+          /r/{code}
+        </code>{" "}
+        — הוא מוביל לחנות עם הקוד כבר מוכן, וסופר כמה אנשים לחצו. הספירה היא
+        מספר בלבד: לא נשמר מי נכנס.
+      </p>
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-mut">מה ישותף</summary>
         <pre className="mt-1.5 whitespace-pre-wrap rounded-lg bg-paper p-2.5 text-[11px] leading-relaxed text-mut">

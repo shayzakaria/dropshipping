@@ -447,6 +447,25 @@ export class SupabaseStore implements DataStore {
     return rows.map(toCode);
   }
 
+  async recordCodeClick(codeId: string): Promise<void> {
+    const { error } = await this.db.rpc("record_code_click", { p_code_id: codeId });
+    if (error) throw new Error(error.message);
+  }
+
+  async countClicksByCodeIds(codeIds: string[], since: Date): Promise<Map<string, number>> {
+    const out = new Map<string, number>(codeIds.map((id) => [id, 0]));
+    if (codeIds.length === 0) return out;
+    const rows = await this.many<{ code_id: string; clicks: number }>(
+      this.db
+        .from("code_clicks")
+        .select("code_id, clicks")
+        .in("code_id", codeIds)
+        .gte("day", since.toISOString().slice(0, 10)),
+    );
+    for (const r of rows) out.set(r.code_id, (out.get(r.code_id) ?? 0) + Number(r.clicks));
+    return out;
+  }
+
   async listCodesByCampaignIds(campaignIds: string[]): Promise<CouponCode[]> {
     if (campaignIds.length === 0) return [];
     const rows = await this.many<CodeRow>(

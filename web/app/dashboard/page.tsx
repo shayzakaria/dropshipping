@@ -243,10 +243,19 @@ async function InfluencerDashboard({ user, store }: { user: User; store: DataSto
 
   // Was two queries per code, run one after another. Now two, whatever the
   // influencer's code count.
-  const campaigns = await store.listCampaignsByIds([...new Set(codes.map((c) => c.campaignId))]);
+  const since30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const [campaigns, clicks] = await Promise.all([
+    store.listCampaignsByIds([...new Set(codes.map((c) => c.campaignId))]),
+    store.countClicksByCodeIds(codes.map((c) => c.id), since30),
+  ]);
   const businesses = await store.listBusinessesByIds([
     ...new Set(campaigns.map((c) => c.businessId)),
   ]);
+  const salesByCode = new Map<string, number>();
+  for (const r of redemptions) {
+    if (r.status === "cancelled") continue;
+    salesByCode.set(r.codeId, (salesByCode.get(r.codeId) ?? 0) + 1);
+  }
   const businessById = new Map(businesses.map((b) => [b.id, b]));
   const campaignById = new Map<string, Campaign>(campaigns.map((c) => [c.id, c]));
   const businessByCampaign = new Map<string, Business>();
@@ -338,6 +347,10 @@ async function InfluencerDashboard({ user, store }: { user: User; store: DataSto
                       הקונה מקבל {campaign.buyerDiscountPct}% הנחה · את/ה מרוויח/ה{" "}
                       <span className="font-bold text-deal-deep">{campaign.influencerPct + tier.bonusPct}%</span> מכל קנייה
                     </p>
+                    <ClickStats
+                      clicks={clicks.get(code.id) ?? 0}
+                      sales={salesByCode.get(code.id) ?? 0}
+                    />
                     <ShareCode
                       code={code.code}
                       campaignTitle={campaign.title}
@@ -371,6 +384,50 @@ const COMMISSION_LABELS = {
   paid: { text: "שולם", tone: "default" as const },
   cancelled: { text: "בוטל", tone: "warning" as const },
 };
+
+/**
+ * What the influencer's link did in the last 30 days.
+ *
+ * Clicks are the point: they arrive within minutes of a post, while a sale
+ * can take days. Shown beside sales because the pair is what diagnoses —
+ * clicks with no sales says the offer or the shop is losing people; no
+ * clicks says the post is.
+ *
+ * Deliberately no conversion percentage. A buyer can type the code without
+ * ever touching the link, so sales are not a subset of clicks and dividing
+ * one by the other produces numbers like "171% conversion" — a figure that
+ * looks precise, means nothing, and would be quoted back at us.
+ */
+function ClickStats({ clicks, sales }: { clicks: number; sales: number }) {
+  if (clicks === 0 && sales === 0) {
+    return (
+      <p className="mt-3 rounded-lg border border-dashed border-ink/25 bg-paper p-2.5 text-xs leading-relaxed text-mut">
+        עוד אף אחד לא לחץ על הלינק שלך. שתפו אותו וזה יתחיל להתעדכן תוך דקות —
+        בלי לחכות למכירה.
+      </p>
+    );
+  }
+  return (
+    <div className="mt-3">
+      <div className="flex flex-wrap items-stretch gap-2">
+        <p className="flex-1 rounded-lg border border-ink/25 bg-paper px-3 py-2">
+          <span className="block font-mono text-xl font-bold tabular-nums">{clicks}</span>
+          <span className="text-xs text-mut">לחצו על הלינק · 30 יום</span>
+        </p>
+        <p className="flex-1 rounded-lg border border-ink/25 bg-paper px-3 py-2">
+          <span className="block font-mono text-xl font-bold tabular-nums">{sales}</span>
+          <span className="text-xs text-mut">קניות עם הקוד</span>
+        </p>
+      </div>
+      {clicks >= 10 && sales === 0 ? (
+        <p className="mt-2 rounded-lg border border-deal-deep/40 bg-mark/25 p-2.5 text-xs leading-relaxed text-ink">
+          אנשים נכנסים אבל לא קונים. זה כמעט תמיד לא התוכן שלך אלא ההצעה או
+          החנות — שווה לדבר עם העסק.
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 function CommissionBadge({ redemption }: { redemption: Redemption }) {
   const state = commissionState(redemption);

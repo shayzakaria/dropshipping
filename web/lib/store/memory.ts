@@ -153,6 +153,27 @@ export class MemoryStore implements DataStore {
     return [...this.codes.values()].filter((c) => want.has(c.campaignId));
   }
 
+  /** codeId -> "YYYY-MM-DD" -> clicks */
+  private readonly clicks = new Map<string, Map<string, number>>();
+
+  async recordCodeClick(codeId: string): Promise<void> {
+    const day = this.now().slice(0, 10);
+    const byDay = this.clicks.get(codeId) ?? new Map<string, number>();
+    byDay.set(day, (byDay.get(day) ?? 0) + 1);
+    this.clicks.set(codeId, byDay);
+  }
+
+  async countClicksByCodeIds(codeIds: string[], since: Date): Promise<Map<string, number>> {
+    const from = since.toISOString().slice(0, 10);
+    const out = new Map<string, number>();
+    for (const id of codeIds) {
+      let total = 0;
+      for (const [day, n] of this.clicks.get(id) ?? []) if (day >= from) total += n;
+      out.set(id, total);
+    }
+    return out;
+  }
+
   async createRedemption(input: Omit<Redemption, "id" | "createdAt">): Promise<Redemption> {
     const r: Redemption = { ...input, id: randomUUID(), createdAt: this.now() };
     this.redemptions.set(r.id, r);

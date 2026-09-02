@@ -60,6 +60,11 @@ export interface DataStore {
   listCodesByCampaign(campaignId: string): Promise<CouponCode[]>;
   listCodesByCampaignIds(campaignIds: string[]): Promise<CouponCode[]>;
 
+  // Clicks on an influencer's tracking link. Counted per code per day — never
+  // per visitor, so there is nothing here that identifies anyone.
+  recordCodeClick(codeId: string): Promise<void>;
+  countClicksByCodeIds(codeIds: string[], since: Date): Promise<Map<string, number>>;
+
   // Redemptions
   createRedemption(input: Omit<Redemption, "id" | "createdAt">): Promise<Redemption>;
   getRedemption(id: string): Promise<Redemption | null>;

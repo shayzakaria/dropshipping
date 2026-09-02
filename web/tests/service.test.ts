@@ -719,3 +719,33 @@ describe("a voided commission carries an explanation", () => {
     expect(parseCancellationReason({ evil: true })).toBe("returned");
   });
 });
+
+describe("the influencer's tracking link", () => {
+  it("counts a click per code per day, never per visitor", async () => {
+    const { store, code } = await world();
+    await store.recordCodeClick(code.id);
+    await store.recordCodeClick(code.id);
+    await store.recordCodeClick(code.id);
+    const counts = await store.countClicksByCodeIds([code.id], new Date("2020-01-01"));
+    expect(counts.get(code.id)).toBe(3);
+  });
+
+  it("keeps each code's clicks separate and reports zero for a code with none", async () => {
+    const { store, campaign, influencer } = await world();
+    const a = await store.createCode({ campaignId: campaign.id, influencerId: influencer.id, status: "active" });
+    const other = await store.createUser({ name: "אחר", email: "o@x.com", role: "influencer" });
+    const b = await store.createCode({ campaignId: campaign.id, influencerId: other.id, status: "active" });
+    await store.recordCodeClick(a.id);
+    const counts = await store.countClicksByCodeIds([a.id, b.id], new Date("2020-01-01"));
+    expect(counts.get(a.id)).toBe(1);
+    expect(counts.get(b.id)).toBe(0);
+  });
+
+  it("excludes clicks from before the window asked for", async () => {
+    const { store, code } = await world();
+    await store.recordCodeClick(code.id);
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const counts = await store.countClicksByCodeIds([code.id], tomorrow);
+    expect(counts.get(code.id)).toBe(0);
+  });
+});
