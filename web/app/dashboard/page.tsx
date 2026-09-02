@@ -79,7 +79,13 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
           <p className="text-sm text-mut">עוד אין קמפיינים — צרו את הראשון כדי שמשפיענים יוכלו להצטרף.</p>
         )}
         {campaigns.map((c) => (
-          <Card key={c.id}>
+          <Card
+            key={c.id}
+            // A paused campaign has to look switched off across the whole card.
+            // When the only difference was a small badge, pausing read as
+            // "nothing happened" — the state had changed and nobody could see it.
+            className={c.status === "active" ? "" : "border-dashed bg-paper"}
+          >
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h3 className="text-lg font-bold">{c.title}</h3>
@@ -98,8 +104,16 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
               {" · "}
               {codesByCampaign.get(c.id)?.length ?? 0} משפיענים הצטרפו
             </p>
+            {c.status === "active" ? null : (
+              <p className="mt-3 rounded-lg border border-deal-deep/50 bg-mark/25 p-2.5 text-xs font-medium leading-relaxed text-ink">
+                הקמפיין מושהה — הוא לא מופיע ברשימת הקמפיינים למשפיענים, ואי אפשר לממש
+                את הקודים שלו. עמלות שכבר נצברו לא נפגעות.
+              </p>
+            )}
             <form action={toggleCampaign.bind(null, c.id)} className="mt-3">
-              <button className={btnGhost}>{c.status === "active" ? "השהיית קמפיין" : "הפעלה מחדש"}</button>
+              <button className={c.status === "active" ? btnGhost : btnPrimary}>
+                {c.status === "active" ? "השהיית קמפיין" : "הפעלה מחדש"}
+              </button>
             </form>
           </Card>
         ))}
