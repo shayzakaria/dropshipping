@@ -20,7 +20,22 @@
   --color-err: #b3301c;
   --color-errbg: #f7e4dd;
 
-  --font-display: var(--font-karantina), "Rubik", sans-serif;
+  /*
+   * Rubik, not Karantina.
+   *
+   * The design contract asked for Karantina on headings, and for months the
+   * stack said so — but it never actually rendered: the Hebrew glyphs fell
+   * through to Rubik, and Rubik is what was built, reviewed and approved.
+   * Self-hosting the fonts made Karantina load for the first time, which
+   * narrowed every heading on the site by almost half and changed the whole
+   * feel of it. Measured on the landing page: the headline's first line went
+   * from 46% of the content column to 26%.
+   *
+   * What shipped and was liked wins over what the contract intended, so this
+   * is now explicit rather than accidental, and Karantina is no longer
+   * downloaded at all.
+   */
+  --font-display: var(--font-rubik), system-ui, -apple-system, sans-serif;
   --font-sans: var(--font-rubik), system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, "Courier New", monospace;
 }
@@ -236,12 +251,10 @@ html[data-a11y-stop-motion] *::after {
  * Readable font: Karantina is a condensed display face and is the first thing
  * to go for someone with a reading difficulty. Body text is already Rubik.
  */
-html[data-a11y-readable] {
-  --font-display: var(--font-rubik), system-ui, sans-serif;
-}
+/* Headings are already Rubik; nothing to swap. Kept as a hook in case a
+   display face returns later. */
 html[data-a11y-readable] .font-display {
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

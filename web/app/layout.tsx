@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Karantina, Rubik, JetBrains_Mono } from "next/font/google";
+import { Rubik, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { getCurrentUser } from "@/lib/auth";
@@ -46,12 +46,6 @@ const rubik = Rubik({
   variable: "--font-rubik",
   display: "swap",
 });
-const karantina = Karantina({
-  subsets: ["hebrew", "latin"],
-  weight: ["400", "700"],
-  variable: "--font-karantina",
-  display: "swap",
-});
 const mono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["400", "600", "700"],
@@ -83,7 +77,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
      * on the site silently fell back to the system stack. The design is built
      * on Karantina; without it there is no design.
      */
-    <html lang="he" dir="rtl" className={`${rubik.variable} ${karantina.variable} ${mono.variable}`}>
+    <html lang="he" dir="rtl" className={`${rubik.variable} ${mono.variable}`}>
       <body className="antialiased">
         <template data-design-contract="" dangerouslySetInnerHTML={{ __html: DESIGN_CONTRACT }} />
         <header className="border-b-2 border-ink bg-label">
