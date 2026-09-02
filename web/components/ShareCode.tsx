@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckIcon } from "./icons";
 
 /**
@@ -25,9 +25,13 @@ export function ShareCode({
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // Built in the browser so it works on any domain the site is served from.
-  const trackedLink =
-    typeof window === "undefined" ? "" : `${window.location.origin}/r/${code}`;
+  // The absolute link needs the browser's origin, which the server does not
+  // have. Reading window during render made the server print one thing and
+  // the client another — React's hydration error #418 — so the origin is
+  // picked up after mount and the first render on both sides agrees.
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
+  const trackedLink = origin ? `${origin}/r/${code}` : "";
 
   // The link replaces the bare shop address: it carries the coupon into the
   // cart, so a reader who never types the code still counts as this

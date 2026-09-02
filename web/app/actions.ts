@@ -12,7 +12,7 @@ import {
 import { cancelRedemption, redeemCode } from "@/lib/domain/service";
 import { getReadyStore, isDemoMode } from "@/lib/store";
 import { authErrorMessage, getAuthClient, isAuthConfigured } from "@/lib/supabase-auth";
-import type { CampaignStatus, Role } from "@/lib/domain/types";
+import type { CampaignScope, CampaignStatus, Role } from "@/lib/domain/types";
 
 export interface FormState {
   error?: string;
@@ -193,6 +193,13 @@ export async function createCampaign(_prev: FormState, formData: FormData): Prom
   // not a control. The platform's own share is set here.
   const platformPct = PLATFORM_PCT;
   const newCustomersOnly = formData.get("newCustomersOnly") === "on";
+  const scope: CampaignScope = formData.get("scope") === "product" ? "product" : "store";
+  const productName = String(formData.get("productName") ?? "").trim();
+  const productUrl = String(formData.get("productUrl") ?? "").trim();
+  if (scope === "product" && !productName) {
+    return { error: "קמפיין למוצר ספציפי צריך את שם המוצר — זה מה שהמשפיען יגיד לקהל שלו" };
+  }
+  if (productUrl && !isHttpUrl(productUrl)) return { error: "קישור המוצר צריך להתחיל ב-https" };
   const maxRaw = String(formData.get("maxRedemptionsPerMonth") ?? "").trim();
   const maxRedemptionsPerMonth = maxRaw ? Number(maxRaw) : undefined;
 
@@ -216,6 +223,9 @@ export async function createCampaign(_prev: FormState, formData: FormData): Prom
     platformPct,
     newCustomersOnly,
     maxRedemptionsPerMonth,
+    scope,
+    productName: scope === "product" ? productName : undefined,
+    productUrl: scope === "product" && productUrl ? productUrl : undefined,
     status: "active",
   });
   revalidatePath("/dashboard");
@@ -262,6 +272,43 @@ export async function setCampaignState(campaignId: string, next: CampaignStatus)
   }
   revalidatePath("/dashboard");
   revalidatePath("/campaigns");
+}
+
+/**
+ * An influencer follows a business to hear about its next campaign. The
+ * relationship is with the business; every deal is still per campaign, so a
+ * follower is shown each new campaign's percentages and opts in — nothing
+ * moves them onto new terms silently.
+ */
+export async function toggleFollow(businessId: string, formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "influencer") return refuse("toggleFollow", { role: user.role });
+  const store = await getReadyStore();
+  const business = await store.getBusiness(businessId);
+  if (!business) return refuse("toggleFollow", { businessId });
+  if (formData.get("intent") === "unfollow") await store.unfollowBusiness(user.id, businessId);
+  else await store.followBusiness(user.id, businessId);
+  revalidatePath("/businesses");
+  revalidatePath("/dashboard");
+}
+
+/**
+ * Operator only: paid placement in the directory. Billing is manual until a
+ * payment provider exists, so this is the whole mechanism — a date.
+ */
+export async function setFeatured(businessId: string, formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user?.isAdmin) return refuse("setFeatured", { userId: user?.id ?? null });
+  const store = await getReadyStore();
+  const days = Number(formData.get("days"));
+  const until =
+    Number.isFinite(days) && days > 0
+      ? new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+  await store.setBusinessFeaturedUntil(businessId, until);
+  revalidatePath("/businesses");
+  revalidatePath("/admin");
 }
 
 /** The business voids a commission after a return. Ownership is enforced. */

@@ -18,6 +18,12 @@ export interface User {
    * an example from a customer is being misled about how busy the platform is.
    */
   isDemo?: boolean;
+  /**
+   * Operator access. Never set by the application — only by SQL, on purpose,
+   * per account. With email confirmation off, anything derived from an email
+   * address would be self-grantable by whoever registered it first.
+   */
+  isAdmin?: boolean;
   createdAt: string;
 }
 
@@ -30,6 +36,11 @@ export interface Business {
   description?: string;
   /** Absolute http(s) URL to a logo. Always rendered with a fallback. */
   logoUrl?: string;
+  /**
+   * Paid placement at the top of the directory, until this moment. A time
+   * rather than a flag so a slot expires by itself.
+   */
+  featuredUntil?: string;
   /** Secret used by the business's store (plugin/webhook) to authenticate redemption API calls */
   apiSecret: string;
   /** Seeded example data — see User.isDemo */
@@ -49,6 +60,9 @@ export interface Business {
  */
 export type CampaignStatus = "active" | "paused" | "closed";
 
+/** What the coupon covers at the store's checkout. Recorded, not enforced here. */
+export type CampaignScope = "store" | "product";
+
 export interface Campaign {
   id: string;
   businessId: string;
@@ -64,6 +78,10 @@ export interface Campaign {
   newCustomersOnly: boolean;
   /** Optional safety cap on total redemptions per calendar month */
   maxRedemptionsPerMonth?: number;
+  /** Whole shop, or one product. The influencer is told which. */
+  scope: CampaignScope;
+  productName?: string;
+  productUrl?: string;
   status: CampaignStatus;
   createdAt: string;
 }
@@ -139,4 +157,11 @@ export interface Tier {
   label: string;
   minMonthlySales: number;
   bonusPct: number;
+}
+
+/** An influencer following a business, to hear about its next campaign. */
+export interface BusinessFollow {
+  influencerId: string;
+  businessId: string;
+  createdAt: string;
 }

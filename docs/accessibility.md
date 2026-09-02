@@ -21,6 +21,7 @@ npm run build
 DEMO_MODE=true npx next start -p 3111 &
 node a11y-audit.mjs   # axe-core על כל עמוד
 node rtl-audit.mjs    # RTL, גלישה אופקית, גודל מטרות, ניווט מקלדת
+node e2e-flow.mjs     # זרימות בדפדפן: הרשאות מנהל, מעקב, קידום, טווח קמפיין
 ```
 
 `a11y-audit.mjs` מריץ את מנוע `axe-core` — אותו מנוע שבודקי נגישות משתמשים בו —

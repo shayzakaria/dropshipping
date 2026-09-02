@@ -31,6 +31,10 @@ export async function seed(store: MemoryStore): Promise<void> {
     isDemo: true,
   });
 
+  // Operator access is granted after creation, by hand — the same way it is
+  // granted in production (a SQL update on the row), never through createUser.
+  store.users.set(dana.id, { ...dana, isAdmin: true });
+
   const business = await store.createBusiness({
     ownerId: dana.id,
     name: "סטודיו דנה — אופנה ישראלית",

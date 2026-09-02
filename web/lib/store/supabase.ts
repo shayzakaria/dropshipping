@@ -1,8 +1,10 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
   Business,
+  BusinessFollow,
   CancellationReason,
   Campaign,
+  CampaignScope,
   CampaignStatus,
   CouponCode,
   Redemption,
@@ -11,7 +13,8 @@ import type {
   User,
 } from "../domain/types";
 import { generateCode, normalizeCode } from "../domain/logic";
-import type { DataStore } from "./store";
+import { computeAdminSnapshot } from "../domain/admin";
+import type { AdminSnapshot, DataStore } from "./store";
 
 /**
  * Supabase-backed DataStore. Runs server-side only with the project's secret
@@ -29,6 +32,7 @@ type ProfileRow = {
   role: User["role"];
   auth_user_id: string | null;
   is_demo: boolean | null;
+  is_admin: boolean | null;
   created_at: string;
 };
 type BusinessRow = {
@@ -39,6 +43,7 @@ type BusinessRow = {
   api_secret: string;
   description: string | null;
   logo_url: string | null;
+  featured_until: string | null;
   is_demo: boolean | null;
   created_at: string;
 };
@@ -52,6 +57,9 @@ type CampaignRow = {
   platform_pct: number | string;
   new_customers_only: boolean;
   max_redemptions_per_month: number | null;
+  scope: CampaignScope | null;
+  product_name: string | null;
+  product_url: string | null;
   status: CampaignStatus;
   created_at: string;
 };
@@ -92,6 +100,7 @@ const toUser = (r: ProfileRow): User => ({
   role: r.role,
   authUserId: r.auth_user_id ?? undefined,
   isDemo: r.is_demo ?? false,
+  isAdmin: r.is_admin ?? false,
   createdAt: r.created_at,
 });
 
@@ -103,6 +112,7 @@ const toBusiness = (r: BusinessRow): Business => ({
   apiSecret: r.api_secret,
   description: r.description ?? undefined,
   logoUrl: r.logo_url ?? undefined,
+  featuredUntil: r.featured_until ?? undefined,
   isDemo: r.is_demo ?? false,
   createdAt: r.created_at,
 });
@@ -117,6 +127,9 @@ const toCampaign = (r: CampaignRow): Campaign => ({
   platformPct: num(r.platform_pct),
   newCustomersOnly: r.new_customers_only,
   maxRedemptionsPerMonth: r.max_redemptions_per_month ?? undefined,
+  scope: r.scope ?? "store",
+  productName: r.product_name ?? undefined,
+  productUrl: r.product_url ?? undefined,
   status: r.status,
   createdAt: r.created_at,
 });
@@ -328,6 +341,79 @@ export class SupabaseStore implements DataStore {
     return rows.map(toBusiness);
   }
 
+  async setBusinessFeaturedUntil(id: string, until: string | null): Promise<void> {
+    const { error } = await this.db.from("businesses").update({ featured_until: until }).eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  async followBusiness(influencerId: string, businessId: string): Promise<void> {
+    const { error } = await this.db
+      .from("business_follows")
+      .upsert({ influencer_id: influencerId, business_id: businessId }, { onConflict: "influencer_id,business_id", ignoreDuplicates: true });
+    if (error) throw new Error(error.message);
+  }
+
+  async unfollowBusiness(influencerId: string, businessId: string): Promise<void> {
+    const { error } = await this.db
+      .from("business_follows")
+      .delete()
+      .eq("influencer_id", influencerId)
+      .eq("business_id", businessId);
+    if (error) throw new Error(error.message);
+  }
+
+  async listFollowsByInfluencer(influencerId: string): Promise<BusinessFollow[]> {
+    const rows = await this.many<{ influencer_id: string; business_id: string; created_at: string }>(
+      this.db.from("business_follows").select().eq("influencer_id", influencerId),
+    );
+    return rows.map((r) => ({ influencerId: r.influencer_id, businessId: r.business_id, createdAt: r.created_at }));
+  }
+
+  async countFollowersByBusinessIds(businessIds: string[]): Promise<Map<string, number>> {
+    const out = new Map(businessIds.map((id) => [id, 0]));
+    if (businessIds.length === 0) return out;
+    const rows = await this.many<{ business_id: string }>(
+      this.db.from("business_follows").select("business_id").in("business_id", businessIds),
+    );
+    for (const r of rows) out.set(r.business_id, (out.get(r.business_id) ?? 0) + 1);
+    return out;
+  }
+
+  async recordPageView(path: string): Promise<void> {
+    const { error } = await this.db.rpc("record_page_view", { p_path: path });
+    if (error) throw new Error(error.message);
+  }
+
+  async adminSnapshot(since: Date): Promise<AdminSnapshot> {
+    const fromDay = since.toISOString().slice(0, 10);
+    // Eight independent reads in one wave. The pilot's tables are small enough
+    // to aggregate in memory; when they are not, this is the method to revisit.
+    const [users, businesses, campaigns, codes, follows, redemptions, clicks, views] = await Promise.all([
+      this.many<ProfileRow>(this.db.from("profiles").select()),
+      this.many<BusinessRow>(this.db.from("businesses").select()),
+      this.many<CampaignRow>(this.db.from("campaigns").select()),
+      this.many<CodeRow>(this.db.from("coupon_codes").select()),
+      this.count(this.db.from("business_follows").select("*", { count: "exact", head: true })),
+      this.many<RedemptionRow>(this.db.from("redemptions").select()),
+      this.many<{ day: string; clicks: number }>(this.db.from("code_clicks").select("day, clicks").gte("day", fromDay)),
+      this.many<{ path: string; day: string; views: number }>(this.db.from("page_views").select("path, day, views").gte("day", fromDay)),
+    ]);
+    return computeAdminSnapshot(
+      {
+        users: users.map(toUser),
+        businesses: businesses.map(toBusiness),
+        campaigns: campaigns.map(toCampaign),
+        codes: codes.map(toCode),
+        followsTotal: follows,
+        redemptions: redemptions.map(toRedemption),
+        clicks: clicks.map((c) => [c.day, Number(c.clicks)]),
+        views: views.map((v) => [v.path, v.day, Number(v.views)]),
+      },
+      since,
+      new Date(),
+    );
+  }
+
   async listBusinessesByIds(ids: string[]): Promise<Business[]> {
     if (ids.length === 0) return [];
     const rows = await this.many<BusinessRow>(
@@ -345,7 +431,9 @@ export class SupabaseStore implements DataStore {
 
   // Campaigns ---------------------------------------------------------------
 
-  async createCampaign(input: Omit<Campaign, "id" | "createdAt">): Promise<Campaign> {
+  async createCampaign(
+    input: Omit<Campaign, "id" | "createdAt" | "scope"> & { scope?: CampaignScope },
+  ): Promise<Campaign> {
     const { data, error } = await this.db
       .from("campaigns")
       .insert({
@@ -357,6 +445,9 @@ export class SupabaseStore implements DataStore {
         platform_pct: input.platformPct,
         new_customers_only: input.newCustomersOnly,
         max_redemptions_per_month: input.maxRedemptionsPerMonth ?? null,
+        scope: input.scope ?? "store",
+        product_name: input.productName ?? null,
+        product_url: input.productUrl ?? null,
         status: input.status,
       })
       .select()

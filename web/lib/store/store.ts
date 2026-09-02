@@ -1,7 +1,9 @@
 import type {
   Business,
+  BusinessFollow,
   CancellationReason,
   Campaign,
+  CampaignScope,
   CampaignStatus,
   CouponCode,
   Redemption,
@@ -32,6 +34,14 @@ export interface DataStore {
   ): Promise<void>;
   /** Businesses that belong in the public directory, newest first. */
   listDirectoryBusinesses(): Promise<Business[]>;
+  /** Operator only: paid placement. `null` clears it. */
+  setBusinessFeaturedUntil(id: string, until: string | null): Promise<void>;
+
+  // An influencer following a business
+  followBusiness(influencerId: string, businessId: string): Promise<void>;
+  unfollowBusiness(influencerId: string, businessId: string): Promise<void>;
+  listFollowsByInfluencer(influencerId: string): Promise<BusinessFollow[]>;
+  countFollowersByBusinessIds(businessIds: string[]): Promise<Map<string, number>>;
   getBusiness(id: string): Promise<Business | null>;
   getBusinessByOwner(ownerId: string): Promise<Business | null>;
   /**
@@ -52,7 +62,10 @@ export interface DataStore {
   listBusinessesByIds(ids: string[]): Promise<Business[]>;
 
   // Campaigns
-  createCampaign(input: Omit<Campaign, "id" | "createdAt">): Promise<Campaign>;
+  /** `scope` defaults to the whole store when not given. */
+  createCampaign(
+    input: Omit<Campaign, "id" | "createdAt" | "scope"> & { scope?: CampaignScope },
+  ): Promise<Campaign>;
   getCampaign(id: string): Promise<Campaign | null>;
   listActiveCampaigns(): Promise<Campaign[]>;
   listCampaignsByBusiness(businessId: string): Promise<Campaign[]>;
@@ -71,6 +84,16 @@ export interface DataStore {
   // per visitor, so there is nothing here that identifies anyone.
   recordCodeClick(codeId: string): Promise<void>;
   countClicksByCodeIds(codeIds: string[], since: Date): Promise<Map<string, number>>;
+
+  // Page views, per path per day, no visitor — the operator's traffic numbers
+  recordPageView(path: string): Promise<void>;
+
+  /**
+   * Everything the operator's dashboard needs, in as few round trips as the
+   * backend allows. Kept as one method so the two stores agree on the shape
+   * and the page does not become a query planner.
+   */
+  adminSnapshot(since: Date): Promise<AdminSnapshot>;
 
   // Redemptions
   createRedemption(input: Omit<Redemption, "id" | "createdAt">): Promise<Redemption>;
@@ -103,4 +126,32 @@ export interface DataStore {
    * failure this exists to prevent.
    */
   rateLimitHit(key: string, windowSeconds: number): Promise<number>;
+}
+
+/** A day's worth of one metric, for the operator's charts. */
+export interface DailyPoint {
+  day: string;
+  value: number;
+}
+
+export interface AdminSnapshot {
+  users: { total: number; businesses: number; influencers: number; demo: number; newSince: number };
+  businesses: { total: number; withProfile: number; featured: number };
+  campaigns: { active: number; paused: number; closed: number };
+  codes: { total: number };
+  follows: { total: number };
+  redemptions: {
+    count: number;
+    cancelled: number;
+    gmv: number;
+    buyerDiscounts: number;
+    influencerCommissions: number;
+    platformFees: number;
+  };
+  clicks: { total: number };
+  pageViews: { total: number; byPath: Array<{ path: string; views: number }> };
+  series: { sales: DailyPoint[]; clicks: DailyPoint[]; views: DailyPoint[] };
+  topBusinesses: Array<{ id: string; name: string; sales: number; gmv: number }>;
+  topInfluencers: Array<{ id: string; name: string; sales: number; commission: number }>;
+  recent: Redemption[];
 }

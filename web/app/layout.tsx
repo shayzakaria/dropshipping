@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { after } from "next/server";
+import { headers } from "next/headers";
 import { Rubik, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
@@ -7,7 +9,7 @@ import { logout } from "./actions";
 import { TagIcon } from "@/components/icons";
 import { AccessibilityMenu } from "@/components/AccessibilityMenu";
 import { CookieNotice } from "@/components/CookieNotice";
-import { isPersistent } from "@/lib/store";
+import { getReadyStore, isPersistent } from "@/lib/store";
 
 export const metadata: Metadata = {
   title: "BOOST — קוד קופון אחד, כולם מרוויחים",
@@ -66,6 +68,21 @@ const FOOTER_LINKS = [
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
+
+  // One page view, counted after the response has gone out so the visitor
+  // never waits on it. Per path per day, no visitor — the same shape as clicks.
+  // The path arrives from middleware, which is the only place Next exposes it.
+  const pathname = (await headers()).get("x-pathname");
+  if (pathname && !pathname.startsWith("/_next") && !pathname.startsWith("/api")) {
+    after(async () => {
+      try {
+        await (await getReadyStore()).recordPageView(pathname);
+      } catch (e) {
+        console.error("[BOOST] page view not recorded", e);
+      }
+    });
+  }
+
   return (
     /*
      * The font variables belong on <html>, not <body>.
@@ -104,8 +121,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <Link href="/dashboard" className={navLink}>
                     הדשבורד שלי
                   </Link>
+                  {user.isAdmin ? (
+                    <Link
+                      href="/admin"
+                      className="rounded-md border-2 border-deal-deep bg-mark/30 px-3 py-1.5 text-sm font-bold text-ink transition hover:bg-mark/60"
+                    >
+                      ניהול מערכת
+                    </Link>
+                  ) : null}
                   <span className="hidden px-2 text-xs font-medium text-mut sm:inline">
-                    {user.name} · {user.role === "business" ? "עסק" : "משפיען"}
+                    {user.name} · {user.isAdmin ? "מנהל מערכת" : user.role === "business" ? "עסק" : "משפיען"}
                   </span>
                   <form action={logout}>
                     <button className="rounded-md border border-ink/30 px-3 py-1.5 text-sm font-semibold transition hover:bg-paper">

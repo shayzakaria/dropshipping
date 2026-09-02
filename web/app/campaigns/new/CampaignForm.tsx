@@ -13,6 +13,7 @@ export function CampaignForm() {
   const [buyerDiscountPct, setBuyerDiscountPct] = useState(10);
   const [influencerPct, setInfluencerPct] = useState(7);
   const [platformPct] = useState(3);
+  const [scope, setScope] = useState<"store" | "product">("store");
 
   const preview = useMemo(() => {
     try {
@@ -31,6 +32,37 @@ export function CampaignForm() {
         placeholder="תיאור קצר שמשפיענים יראו (אופציונלי)"
         className={`${inputCls} min-h-20`}
       />
+
+      {/*
+        What the code covers is the first thing an influencer tells their
+        audience, and the first thing a buyer is disappointed by at checkout
+        if it was wrong. So it is asked here, not left to be discovered.
+      */}
+      <fieldset className="rounded-lg border-2 border-dashed border-ink/30 bg-paper p-3">
+        <legend className="px-1 text-sm font-medium">על מה הקוד תקף?</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className={`flex cursor-pointer items-start gap-2.5 rounded-lg border p-3 text-sm transition ${scope === "store" ? "border-deal bg-mark/30" : "border-ink/25 bg-label hover:bg-paper"}`}>
+            <input type="radio" name="scope" value="store" checked={scope === "store"} onChange={() => setScope("store")} className="mt-0.5 h-6 w-6 flex-none accent-deal-deep" />
+            <span>
+              <span className="block font-semibold">כל החנות</span>
+              <span className="block text-xs font-light text-mut">כל קנייה עם הקוד מזכה בעמלה.</span>
+            </span>
+          </label>
+          <label className={`flex cursor-pointer items-start gap-2.5 rounded-lg border p-3 text-sm transition ${scope === "product" ? "border-deal bg-mark/30" : "border-ink/25 bg-label hover:bg-paper"}`}>
+            <input type="radio" name="scope" value="product" checked={scope === "product"} onChange={() => setScope("product")} className="mt-0.5 h-6 w-6 flex-none accent-deal-deep" />
+            <span>
+              <span className="block font-semibold">מוצר ספציפי</span>
+              <span className="block text-xs font-light text-mut">הקוד מקדם פריט אחד; החנות אוכפת את זה בקופה.</span>
+            </span>
+          </label>
+        </div>
+        {scope === "product" ? (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <input name="productName" placeholder="שם המוצר" className={inputCls} required />
+            <input name="productUrl" type="url" placeholder="קישור למוצר (אופציונלי)" className={inputCls} dir="ltr" />
+          </div>
+        ) : null}
+      </fieldset>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="block text-sm">

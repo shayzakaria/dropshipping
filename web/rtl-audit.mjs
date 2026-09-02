@@ -1,6 +1,6 @@
 import { chromium } from "playwright-core";
 const BASE = "http://localhost:3111";
-const PAGES = ["/", "/login", "/campaigns", "/simulate", "/dashboard", "/campaigns/new",
+const PAGES = ["/", "/login", "/campaigns", "/simulate", "/dashboard", "/campaigns/new", "/businesses", "/admin",
                "/legal/accessibility", "/legal/terms", "/legal/privacy", "/legal/influencer"];
 const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const ctx = await b.newContext({ locale: "he-IL" });

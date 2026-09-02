@@ -79,6 +79,20 @@ export default async function CampaignsPage() {
                     עמלה {c.influencerPct}%{user?.role === "influencer" && tier.bonusPct ? ` +${tier.bonusPct}% בונוס` : ""}
                   </Badge>
                   {c.newCustomersOnly ? <Badge>לקוחות חדשים בלבד</Badge> : null}
+                  {/* The first thing an influencer tells their audience. */}
+                  {c.scope === "product" ? (
+                    <Badge tone="warning">
+                      {c.productUrl ? (
+                        <a href={c.productUrl} target="_blank" rel="noopener noreferrer nofollow" className="underline underline-offset-2">
+                          למוצר: {c.productName}
+                        </a>
+                      ) : (
+                        <>למוצר: {c.productName}</>
+                      )}
+                    </Badge>
+                  ) : (
+                    <Badge>תקף על כל החנות</Badge>
+                  )}
                 </div>
                 <div className="mt-4">
                   {example ? (

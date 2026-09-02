@@ -259,9 +259,10 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
 }
 
 async function InfluencerDashboard({ user, store }: { user: User; store: DataStore }) {
-  const [codes, redemptions] = await Promise.all([
+  const [codes, redemptions, follows] = await Promise.all([
     store.listCodesByInfluencer(user.id),
     store.listRedemptionsByInfluencer(user.id),
+    store.listFollowsByInfluencer(user.id),
   ]);
   const now = new Date();
   const stats = influencerStats(redemptions, now);
@@ -284,6 +285,18 @@ async function InfluencerDashboard({ user, store }: { user: User; store: DataSto
     if (r.status === "cancelled") continue;
     salesByCode.set(r.codeId, (salesByCode.get(r.codeId) ?? 0) + 1);
   }
+  // Campaigns from businesses this influencer follows that they have not
+  // joined yet. This is the "you need to know" list: a new campaign shows up
+  // here with its own percentages, and joining is a choice, never automatic.
+  const followedIds = new Set(follows.map((f) => f.businessId));
+  const joinedCampaignIds = new Set(codes.map((c) => c.campaignId));
+  const [allActive, followedBusinesses] = await Promise.all([
+    followedIds.size > 0 ? store.listActiveCampaigns() : Promise.resolve([]),
+    store.listBusinessesByIds([...followedIds]),
+  ]);
+  const newFromFollowed = allActive.filter((c) => followedIds.has(c.businessId) && !joinedCampaignIds.has(c.id));
+  const followedBusinessById = new Map(followedBusinesses.map((b) => [b.id, b]));
+
   const businessById = new Map(businesses.map((b) => [b.id, b]));
   const campaignById = new Map<string, Campaign>(campaigns.map((c) => [c.id, c]));
   const businessByCampaign = new Map<string, Business>();
@@ -341,6 +354,43 @@ async function InfluencerDashboard({ user, store }: { user: User; store: DataSto
         הביטול של הקונה לפי חוק הגנת הצרכן. אם ההזמנה חוזרת, העמלה מתבטלת.
         {wallet.cancelled > 0 ? ` עד היום בוטלו ${formatILS(wallet.cancelled)} בעקבות החזרות.` : ""}
       </p>
+
+      {newFromFollowed.length > 0 ? (
+        <>
+          <SectionTitle>קמפיינים חדשים מעסקים שאת/ה עוקב/ת אחריהם</SectionTitle>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {newFromFollowed.map((c) => (
+              <Card key={c.id} className="ring-2 ring-deal ring-offset-2 ring-offset-paper">
+                <p className="text-xs font-semibold text-deal-deep">
+                  {followedBusinessById.get(c.businessId)?.name ?? "עסק"}
+                </p>
+                <h3 className="mt-0.5 text-lg font-bold leading-tight">{c.title}</h3>
+                {/* The percentages are the point: a follower sees every new deal
+                    in full and chooses. Nothing moves them onto new terms quietly. */}
+                <p className="mt-2 text-sm">
+                  הקונה מקבל <span className="font-bold">{c.buyerDiscountPct}%</span> · את/ה מרוויח/ה{" "}
+                  <span className="font-bold text-deal-deep">{c.influencerPct + tier.bonusPct}%</span> מכל קנייה
+                  {c.scope === "product" ? <> · תקף על <span className="font-semibold">{c.productName}</span></> : " · תקף על כל החנות"}
+                </p>
+                <Link
+                  href="/campaigns"
+                  className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-deal px-3 text-sm font-bold text-ink transition hover:bg-[#ff5a17]"
+                >
+                  לראות ולהצטרף
+                </Link>
+              </Card>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {followedBusinesses.length > 0 && newFromFollowed.length === 0 ? (
+        <p className="mb-6 text-xs text-mut">
+          את/ה עוקב/ת אחרי {followedBusinesses.length}{" "}
+          {followedBusinesses.length === 1 ? "עסק" : "עסקים"}. כשמישהו מהם יפתח קמפיין חדש, הוא יופיע כאן עם
+          האחוזים שלו.
+        </p>
+      ) : null}
 
       <SectionTitle>הקודים שלי</SectionTitle>
       <div className="grid gap-3 sm:grid-cols-2">

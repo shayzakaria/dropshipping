@@ -1,16 +1,19 @@
 import { randomUUID } from "crypto";
 import type {
   Business,
+  BusinessFollow,
   CancellationReason,
   Campaign,
+  CampaignScope,
   CampaignStatus,
   CouponCode,
   Redemption,
   RedemptionStatus,
   User,
 } from "../domain/types";
+import { computeAdminSnapshot } from "../domain/admin";
 import { generateCode, monthKey, normalizeCode } from "../domain/logic";
-import type { DataStore } from "./store";
+import type { AdminSnapshot, DataStore } from "./store";
 
 export class MemoryStore implements DataStore {
   users = new Map<string, User>();
@@ -27,7 +30,12 @@ export class MemoryStore implements DataStore {
     const email = input.email.trim().toLowerCase();
     const existing = await this.getUserByEmail(email);
     if (existing) throw new Error("EMAIL_TAKEN");
-    const user: User = { ...input, email, id: randomUUID(), createdAt: this.now() };
+    // Operator access is not something a caller gets to ask for. It is set on
+    // the row afterwards, by a person, and never travels through this path —
+    // the Supabase store does not insert it either, and the two must agree.
+    const { isAdmin: _ignored, ...safe } = input as typeof input & { isAdmin?: boolean };
+    void _ignored;
+    const user: User = { ...safe, email, id: randomUUID(), createdAt: this.now() };
     this.users.set(user.id, user);
     return user;
   }
@@ -79,6 +87,33 @@ export class MemoryStore implements DataStore {
     return [...this.businesses.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  async setBusinessFeaturedUntil(id: string, until: string | null): Promise<void> {
+    const b = this.businesses.get(id);
+    if (b) this.businesses.set(id, { ...b, featuredUntil: until ?? undefined });
+  }
+
+  private readonly follows = new Map<string, BusinessFollow>();
+  private followKey(i: string, b: string) { return `${i}:${b}`; }
+
+  async followBusiness(influencerId: string, businessId: string): Promise<void> {
+    const k = this.followKey(influencerId, businessId);
+    if (!this.follows.has(k)) this.follows.set(k, { influencerId, businessId, createdAt: this.now() });
+  }
+
+  async unfollowBusiness(influencerId: string, businessId: string): Promise<void> {
+    this.follows.delete(this.followKey(influencerId, businessId));
+  }
+
+  async listFollowsByInfluencer(influencerId: string): Promise<BusinessFollow[]> {
+    return [...this.follows.values()].filter((f) => f.influencerId === influencerId);
+  }
+
+  async countFollowersByBusinessIds(businessIds: string[]): Promise<Map<string, number>> {
+    const out = new Map(businessIds.map((id) => [id, 0]));
+    for (const f of this.follows.values()) if (out.has(f.businessId)) out.set(f.businessId, out.get(f.businessId)! + 1);
+    return out;
+  }
+
   async getBusiness(id: string): Promise<Business | null> {
     return this.businesses.get(id) ?? null;
   }
@@ -98,8 +133,10 @@ export class MemoryStore implements DataStore {
     return null;
   }
 
-  async createCampaign(input: Omit<Campaign, "id" | "createdAt">): Promise<Campaign> {
-    const campaign: Campaign = { ...input, id: randomUUID(), createdAt: this.now() };
+  async createCampaign(
+    input: Omit<Campaign, "id" | "createdAt" | "scope"> & { scope?: CampaignScope },
+  ): Promise<Campaign> {
+    const campaign: Campaign = { scope: "store", ...input, id: randomUUID(), createdAt: this.now() };
     this.campaigns.set(campaign.id, campaign);
     return campaign;
   }
@@ -173,6 +210,37 @@ export class MemoryStore implements DataStore {
     const byDay = this.clicks.get(codeId) ?? new Map<string, number>();
     byDay.set(day, (byDay.get(day) ?? 0) + 1);
     this.clicks.set(codeId, byDay);
+  }
+
+  private readonly views = new Map<string, Map<string, number>>();
+
+  async recordPageView(path: string): Promise<void> {
+    const day = this.now().slice(0, 10);
+    const byDay = this.views.get(path) ?? new Map<string, number>();
+    byDay.set(day, (byDay.get(day) ?? 0) + 1);
+    this.views.set(path, byDay);
+  }
+
+  async adminSnapshot(since: Date): Promise<AdminSnapshot> {
+    const fromDay = since.toISOString().slice(0, 10);
+    const clicks: Array<[string, number]> = [];
+    for (const byDay of this.clicks.values()) for (const [day, n] of byDay) if (day >= fromDay) clicks.push([day, n]);
+    const views: Array<[string, string, number]> = [];
+    for (const [path, byDay] of this.views) for (const [day, n] of byDay) if (day >= fromDay) views.push([path, day, n]);
+    return computeAdminSnapshot(
+      {
+        users: [...this.users.values()],
+        businesses: [...this.businesses.values()],
+        campaigns: [...this.campaigns.values()],
+        codes: [...this.codes.values()],
+        followsTotal: this.follows.size,
+        redemptions: [...this.redemptions.values()],
+        clicks,
+        views,
+      },
+      since,
+      new Date(this.now()),
+    );
   }
 
   async countClicksByCodeIds(codeIds: string[], since: Date): Promise<Map<string, number>> {

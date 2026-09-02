@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Badge, Card } from "@/components/ui";
 import { BusinessLogo } from "@/components/BusinessLogo";
+import { FollowButton } from "@/components/FollowButton";
+import { getCurrentUser } from "@/lib/auth";
 import { getReadyStore, isDemoMode } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +25,14 @@ export const metadata: Metadata = {
 export default async function BusinessesPage() {
   const store = await getReadyStore();
   const demoMode = isDemoMode();
-  const businesses = await store.listDirectoryBusinesses();
+  const user = await getCurrentUser();
+  const listed = await store.listDirectoryBusinesses();
+
+  // Paid placement first, then newest. A time rather than a flag, so a slot
+  // that was bought for thirty days quietly stops being first on day thirty-one.
+  const nowIso = new Date().toISOString();
+  const isFeatured = (b: (typeof listed)[number]) => Boolean(b.featuredUntil && b.featuredUntil > nowIso);
+  const businesses = [...listed].sort((a, b) => Number(isFeatured(b)) - Number(isFeatured(a)));
 
   // One query for every campaign, one for every code: the influencer count per
   // business is a group-by in memory rather than two queries per card.
@@ -38,6 +47,11 @@ export default async function BusinessesPage() {
     set.add(code.influencerId);
     promotersByBusiness.set(businessId, set);
   }
+  const [followerCounts, myFollows] = await Promise.all([
+    store.countFollowersByBusinessIds(businesses.map((b) => b.id)),
+    user?.role === "influencer" ? store.listFollowsByInfluencer(user.id) : Promise.resolve([]),
+  ]);
+  const followingIds = new Set(myFollows.map((f) => f.businessId));
   const liveCampaigns = new Map<string, number>();
   for (const c of campaigns) {
     liveCampaigns.set(c.businessId, (liveCampaigns.get(c.businessId) ?? 0) + 1);
@@ -76,13 +90,16 @@ export default async function BusinessesPage() {
           const promoters = promotersByBusiness.get(b.id)?.size ?? 0;
           const example = b.isDemo && !demoMode;
           return (
-            <Card key={b.id} className={example ? "border-dashed" : ""}>
+            <Card key={b.id} className={`${example ? "border-dashed" : ""} ${isFeatured(b) ? "ring-2 ring-deal ring-offset-2 ring-offset-paper" : ""}`}>
               <div className="flex items-start gap-3">
                 <BusinessLogo business={b} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <h2 className="text-lg font-bold leading-tight">{b.name}</h2>
-                    {example ? <Badge tone="warning">דוגמה</Badge> : null}
+                    <span className="flex gap-1">
+                      {isFeatured(b) ? <Badge tone="warning">מומלץ</Badge> : null}
+                      {example ? <Badge tone="warning">דוגמה</Badge> : null}
+                    </span>
                   </div>
                   {b.description ? (
                     <p className="mt-1 text-sm font-light leading-relaxed text-mut">{b.description}</p>
@@ -128,6 +145,13 @@ export default async function BusinessesPage() {
                   >
                     לקבל את ההנחה ממשפיען
                   </Link>
+                ) : null}
+                {user?.role === "influencer" && !example ? (
+                  <FollowButton
+                    businessId={b.id}
+                    following={followingIds.has(b.id)}
+                    followers={followerCounts.get(b.id) ?? 0}
+                  />
                 ) : null}
               </div>
             </Card>
