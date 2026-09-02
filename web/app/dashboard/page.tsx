@@ -128,9 +128,12 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
   "order_amount": 300,
   "order_id": "1001",
   "customer_ref": "buyer@example.com",
-  "api_secret": "<המפתח שלך>"
+  "api_secret": "YOUR_API_SECRET"
 }`}
         </pre>
+        <p className="mt-2 text-xs leading-relaxed text-mut">
+          החליפו את <code className="font-mono">YOUR_API_SECRET</code> במפתח שלמעלה.
+        </p>
         <p className="mt-2 text-xs leading-relaxed text-mut">
           שלחו תמיד את <code className="font-mono">order_id</code> — מספר ההזמנה בחנות שלכם. כך
           שליחה חוזרת של אותה הזמנה לא תירשם פעמיים ולא תחויבו בעמלה כפולה.
@@ -145,7 +148,7 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
 {`POST /api/refund
 {
   "order_id": "1001",
-  "api_secret": "<המפתח שלך>"
+  "api_secret": "YOUR_API_SECRET"
 }`}
         </pre>
         <p className="mt-2 text-xs leading-relaxed text-mut">

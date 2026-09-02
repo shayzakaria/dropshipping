@@ -27,6 +27,17 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 const navLink =
   "rounded-md px-3 py-1.5 text-sm font-medium text-ink/80 transition hover:bg-paper hover:text-ink";
 
+/**
+ * An accessibility statement nobody can reach is not published, and תקנה 35
+ * expects it to be. Every page carries these.
+ */
+const FOOTER_LINKS = [
+  { href: "/legal/accessibility", label: "הצהרת נגישות" },
+  { href: "/legal/terms", label: "תנאי שימוש" },
+  { href: "/legal/influencer", label: "הסכם משפיען" },
+  { href: "/legal/privacy", label: "פרטיות" },
+];
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   return (
@@ -84,10 +95,28 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </header>
         <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
         <footer className="mx-auto max-w-5xl px-4 pb-8 pt-6">
-          <div className="perforation pt-4 text-center text-xs text-mut">
-            {isPersistent()
-              ? "גרסה מוקדמת · חשבונות ומכירות נשמרים באמת. תוכן המסומן \u201cדוגמה\u201d אינו עסק אמיתי."
-              : "גרסת דמו מקומית · הנתונים בזיכרון בלבד"}
+          <div className="perforation pt-4">
+            <nav
+              aria-label="מידע משפטי ונגישות"
+              className="flex flex-wrap items-center justify-center gap-x-1 text-xs"
+            >
+              {FOOTER_LINKS.map((l, i) => (
+                <span key={l.href} className="flex items-center gap-1">
+                  {i > 0 ? <span aria-hidden="true" className="text-mut">·</span> : null}
+                  <Link
+                    href={l.href}
+                    className="rounded px-2 py-1.5 font-medium text-mut underline underline-offset-2 transition hover:text-ink"
+                  >
+                    {l.label}
+                  </Link>
+                </span>
+              ))}
+            </nav>
+            <p className="mt-1 text-center text-xs text-mut">
+              {isPersistent()
+                ? "גרסה מוקדמת · חשבונות ומכירות נשמרים באמת. תוכן המסומן \u201cדוגמה\u201d אינו עסק אמיתי."
+                : "גרסת דמו מקומית · הנתונים בזיכרון בלבד"}
+            </p>
           </div>
         </footer>
       </body>

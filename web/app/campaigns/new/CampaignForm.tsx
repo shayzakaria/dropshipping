@@ -64,8 +64,12 @@ export function CampaignForm() {
             name="platformPct"
             value={platformPct}
             readOnly
-            className={`${inputCls} tabular mt-1 font-mono opacity-60`}
+            aria-describedby="platform-pct-note"
+            className={`${inputCls} tabular mt-1 cursor-not-allowed bg-paper font-mono text-mut`}
           />
+          <span id="platform-pct-note" className="mt-1 block text-xs font-light text-mut">
+            קבוע ולא ניתן לשינוי — מתוכו ממומנים בונוסי המדרגות של המשפיענים.
+          </span>
         </label>
       </div>
 
@@ -100,8 +104,13 @@ export function CampaignForm() {
         </p>
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="newCustomersOnly" defaultChecked />
+      <label className="flex cursor-pointer items-start gap-2.5 py-1 text-sm">
+        <input
+          type="checkbox"
+          name="newCustomersOnly"
+          defaultChecked
+          className="mt-0.5 h-6 w-6 flex-none accent-deal-deep"
+        />
         הקופון תקף ללקוחות חדשים בלבד (מומלץ — מונע הנחות ללקוחות שהיו קונים ממילא)
       </label>
 

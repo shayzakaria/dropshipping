@@ -58,7 +58,7 @@ export default async function CampaignsPage() {
               <Card key={c.id}>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="text-lg font-bold">{c.title}</h3>
+                    <h2 className="text-lg font-bold">{c.title}</h2>
                     <p className="text-xs text-mut">{business?.name}</p>
                   </div>
                   {example ? <Badge tone="warning">דוגמה</Badge> : <Badge>{joined} משפיענים</Badge>}
@@ -91,7 +91,10 @@ export default async function CampaignsPage() {
                       <button className={btnPrimary}>הצטרפות — קבלת קוד אישי</button>
                     </form>
                   ) : (
-                    <Link href="/login" className="text-sm font-semibold text-deal-deep underline underline-offset-2">
+                    <Link
+                      href="/login"
+                      className="inline-flex min-h-11 items-center rounded-lg border border-ink/25 bg-label px-3 text-sm font-semibold text-deal-deep transition hover:bg-paper"
+                    >
                       היכנסו כמשפיען כדי להצטרף
                     </Link>
                   )}

@@ -45,6 +45,19 @@ export async function logout(): Promise<void> {
 
 const MIN_PASSWORD_LENGTH = 8;
 
+/**
+ * An action that declines to act, on the record.
+ *
+ * These guards all protect ownership, so they must not tell the caller which
+ * condition failed. But returning in silence meant a click that did nothing,
+ * no error anywhere, and no way to tell a refused action from one that ran —
+ * precisely the state that made the paused-campaign report undiagnosable. The
+ * reason goes to the server log, where we can read it and a visitor cannot.
+ */
+function refuse(action: string, detail: Record<string, unknown>): void {
+  console.warn(`[BOOST] ${action} refused`, detail);
+}
+
 export async function register(_prev: FormState, formData: FormData): Promise<FormState> {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -169,7 +182,9 @@ export async function joinCampaign(campaignId: string): Promise<void> {
   if (user.role !== "influencer") redirect("/dashboard");
   const store = await getReadyStore();
   const campaign = await store.getCampaign(campaignId);
-  if (!campaign || campaign.status !== "active") return;
+  if (!campaign || campaign.status !== "active") {
+    return refuse("joinCampaign", { campaignId, found: Boolean(campaign), status: campaign?.status });
+  }
   await store.createCode({ campaignId, influencerId: user.id, status: "active" });
   revalidatePath("/campaigns");
   revalidatePath("/dashboard");
@@ -181,9 +196,25 @@ export async function toggleCampaign(campaignId: string): Promise<void> {
   const store = await getReadyStore();
   const business = await store.getBusinessByOwner(user.id);
   const campaign = await store.getCampaign(campaignId);
-  if (!business || !campaign || campaign.businessId !== business.id) return;
-  await store.setCampaignStatus(campaignId, campaign.status === "active" ? "paused" : "active");
+  if (!business || !campaign || campaign.businessId !== business.id) {
+    return refuse("toggleCampaign", {
+      campaignId,
+      userId: user.id,
+      business: business?.id ?? null,
+      campaignBusiness: campaign?.businessId ?? null,
+    });
+  }
+  const next = campaign.status === "active" ? "paused" : "active";
+  await store.setCampaignStatus(campaignId, next);
+  // Read it back. An update that matches no row is not an error in PostgREST,
+  // so without this the action reports success for a write that never landed —
+  // exactly the shape of "I clicked and nothing changed".
+  const after = await store.getCampaign(campaignId);
+  if (after?.status !== next) {
+    console.error("[BOOST] toggleCampaign wrote nothing", { campaignId, wanted: next, got: after?.status ?? null });
+  }
   revalidatePath("/dashboard");
+  revalidatePath("/campaigns");
 }
 
 /** The business voids a commission after a return. Ownership is enforced. */
@@ -192,13 +223,14 @@ export async function cancelSale(redemptionId: string, formData: FormData): Prom
   if (!user || user.role !== "business") redirect("/login");
   const store = await getReadyStore();
   const business = await store.getBusinessByOwner(user.id);
-  if (!business) return;
+  if (!business) return refuse("cancelSale", { userId: user.id, redemptionId });
   const reason = parseCancellationReason(formData.get("reason"));
   try {
     await cancelRedemption(store, { businessId: business.id, redemptionId, reason });
   } catch (e) {
     // A sale that is missing, already paid, or not this business's stays as it is
     if (!(e instanceof DomainError)) throw e;
+    refuse("cancelSale", { redemptionId, code: e.code });
   }
   revalidatePath("/dashboard");
 }

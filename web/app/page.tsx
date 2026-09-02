@@ -162,7 +162,7 @@ export default function Home() {
 
       {/* סגירה — פס כתום מחויב */}
       <section className="mt-16 overflow-hidden rounded-xl bg-deal">
-        <div className="flex items-center gap-2 border-b-2 border-dashed border-ink/40 px-6 py-2 text-ink/80">
+        <div className="flex items-center gap-2 border-b-2 border-dashed border-ink/40 px-6 py-2 text-ink">
           <ScissorsIcon className="h-4 w-4" />
           <span className="text-xs font-semibold">גזרו כאן</span>
         </div>
@@ -171,7 +171,7 @@ export default function Home() {
             <h2 className="font-display text-6xl leading-none text-ink">
               מדביקים את המדבקה הראשונה?
             </h2>
-            <p className="mt-2 max-w-md text-sm font-medium text-ink/80">
+            <p className="mt-2 max-w-md text-sm font-medium text-ink">
               פתיחת עסק או חשבון משפיען לוקחת דקה. אפשר גם רק לשחק בסימולטור ולראות
               איך הכסף מתחלק.
             </p>
