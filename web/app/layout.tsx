@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Karantina, Rubik, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { getCurrentUser } from "@/lib/auth";
@@ -27,6 +28,35 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 const navLink =
   "rounded-md px-3 py-1.5 text-sm font-medium text-ink/80 transition hover:bg-paper hover:text-ink";
 
+/*
+ * Self-hosted rather than fetched from Google.
+ *
+ * Three <link>s to fonts.googleapis.com blocked first paint on every single
+ * navigation: the browser cannot render text until that stylesheet arrives,
+ * and only then does it start downloading the font files from a second host.
+ * next/font builds them into our own bundle, so there is no third-party
+ * round trip, no extra DNS and TLS, and no layout shift when the real face
+ * finally lands.
+ */
+const rubik = Rubik({
+  subsets: ["hebrew", "latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-rubik",
+  display: "swap",
+});
+const karantina = Karantina({
+  subsets: ["hebrew", "latin"],
+  weight: ["400", "700"],
+  variable: "--font-karantina",
+  display: "swap",
+});
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  variable: "--font-jetbrains",
+  display: "swap",
+});
+
 /**
  * An accessibility statement nobody can reach is not published, and תקנה 35
  * expects it to be. Every page carries these.
@@ -42,15 +72,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const user = await getCurrentUser();
   return (
     <html lang="he" dir="rtl">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Karantina:wght@400;700&family=Rubik:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="antialiased">
+      <body className={`${rubik.variable} ${karantina.variable} ${mono.variable} antialiased`}>
         <template data-design-contract="" dangerouslySetInnerHTML={{ __html: DESIGN_CONTRACT }} />
         <header className="border-b-2 border-ink bg-label">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">

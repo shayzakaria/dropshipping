@@ -14,21 +14,28 @@ export default async function CampaignsPage() {
   const demoMode = isDemoMode();
   const campaigns = await store.listActiveCampaigns();
 
-  // Resolve the business up front: whether a campaign is an example is a fact
-  // about who is running it, and the page needs it before it renders anything.
-  const rows = await Promise.all(
-    campaigns.map(async (c) => ({
-      campaign: c,
-      business: await store.getBusiness(c.businessId),
-    })),
-  );
+  // Everything below depends only on the campaign list, so it goes out in one
+  // wave of three queries rather than two-per-campaign in sequence. On a page
+  // whose database is a continent away, the number of round trips is the page.
+  const campaignIds = campaigns.map((c) => c.id);
+  const [businesses, codes, monthlySales] = await Promise.all([
+    store.listBusinessesByIds([...new Set(campaigns.map((c) => c.businessId))]),
+    store.listCodesByCampaignIds(campaignIds),
+    user ? store.countInfluencerRedemptionsInMonth(user.id, new Date()) : Promise.resolve(0),
+  ]);
+
+  const businessById = new Map(businesses.map((b) => [b.id, b]));
+  const codesByCampaign = new Map<string, typeof codes>();
+  for (const code of codes) {
+    const list = codesByCampaign.get(code.campaignId);
+    if (list) list.push(code);
+    else codesByCampaign.set(code.campaignId, [code]);
+  }
+
+  const tier = tierForMonthlySales(monthlySales);
+  const rows = campaigns.map((c) => ({ campaign: c, business: businessById.get(c.businessId) ?? null }));
   const real = rows.filter((r) => !r.business?.isDemo);
   const allExamples = rows.length > 0 && real.length === 0;
-
-  const monthlySales = user
-    ? await store.countInfluencerRedemptionsInMonth(user.id, new Date())
-    : 0;
-  const tier = tierForMonthlySales(monthlySales);
 
   return (
     <div>
@@ -46,10 +53,10 @@ export default async function CampaignsPage() {
       ) : null}
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         {campaigns.length === 0 && <p className="text-sm text-mut">אין כרגע קמפיינים פעילים.</p>}
-        {await Promise.all(
-          rows.map(async ({ campaign: c, business }) => {
-            const myCode = user ? await store.getCodeForInfluencerCampaign(user.id, c.id) : null;
-            const joined = (await store.listCodesByCampaign(c.id)).length;
+        {rows.map(({ campaign: c, business }) => {
+          const campaignCodes = codesByCampaign.get(c.id) ?? [];
+          const myCode = user ? campaignCodes.find((k) => k.influencerId === user.id) ?? null : null;
+          const joined = campaignCodes.length;
             // Outside the local demo, an example campaign is not joinable: a
             // code on a business that does not exist can never pay out, and
             // handing an influencer one would be a small con.
@@ -100,9 +107,8 @@ export default async function CampaignsPage() {
                   )}
                 </div>
               </Card>
-            );
-          }),
-        )}
+          );
+        })}
       </div>
     </div>
   );

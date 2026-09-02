@@ -20,9 +20,9 @@
   --color-err: #b3301c;
   --color-errbg: #f7e4dd;
 
-  --font-display: "Karantina", "Rubik", sans-serif;
-  --font-sans: "Rubik", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "Courier New", monospace;
+  --font-display: var(--font-karantina), "Rubik", sans-serif;
+  --font-sans: var(--font-rubik), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "Courier New", monospace;
 }
 
 body {

@@ -253,6 +253,12 @@ export class SupabaseStore implements DataStore {
     return r ? toUser(r) : null;
   }
 
+  async listUsersByIds(ids: string[]): Promise<User[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.many<ProfileRow>(this.db.from("profiles").select().in("id", ids));
+    return rows.map(toUser);
+  }
+
   async listUsers(): Promise<User[]> {
     const rows = await this.many<ProfileRow>(
       this.db.from("profiles").select().order("created_at", { ascending: true }),
@@ -291,6 +297,14 @@ export class SupabaseStore implements DataStore {
       this.db.from("businesses").select().eq("owner_id", ownerId).maybeSingle<BusinessRow>(),
     );
     return r ? toBusiness(r) : null;
+  }
+
+  async listBusinessesByIds(ids: string[]): Promise<Business[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.many<BusinessRow>(
+      this.db.from("businesses").select().in("id", ids),
+    );
+    return rows.map(toBusiness);
   }
 
   async getBusinessByApiSecret(apiSecret: string): Promise<Business | null> {
@@ -337,6 +351,12 @@ export class SupabaseStore implements DataStore {
         .eq("status", "active")
         .order("created_at", { ascending: true }),
     );
+    return rows.map(toCampaign);
+  }
+
+  async listCampaignsByIds(ids: string[]): Promise<Campaign[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.many<CampaignRow>(this.db.from("campaigns").select().in("id", ids));
     return rows.map(toCampaign);
   }
 
@@ -423,6 +443,14 @@ export class SupabaseStore implements DataStore {
   async listCodesByCampaign(campaignId: string): Promise<CouponCode[]> {
     const rows = await this.many<CodeRow>(
       this.db.from("coupon_codes").select().eq("campaign_id", campaignId),
+    );
+    return rows.map(toCode);
+  }
+
+  async listCodesByCampaignIds(campaignIds: string[]): Promise<CouponCode[]> {
+    if (campaignIds.length === 0) return [];
+    const rows = await this.many<CodeRow>(
+      this.db.from("coupon_codes").select().in("campaign_id", campaignIds),
     );
     return rows.map(toCode);
   }

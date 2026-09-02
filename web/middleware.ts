@@ -32,9 +32,15 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    // Everything except static assets and the redeem/refund APIs, which are
-    // authenticated by a business's key rather than by a user session.
-    "/((?!_next/static|_next/image|favicon.ico|api/redeem|api/refund|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
-  ],
+  /*
+   * Only the routes that actually read a session.
+   *
+   * This ran on every request, and each run is a network call to Supabase Auth
+   * to refresh the token — from Vercel to Ireland and back. The landing page,
+   * the legal pages and the simulator do not care who you are, so they were
+   * paying an auth round trip for nothing on every navigation. The redeem and
+   * refund APIs authenticate with a business key, not a session, and are out
+   * for the same reason.
+   */
+  matcher: ["/dashboard/:path*", "/campaigns/:path*", "/login"],
 };

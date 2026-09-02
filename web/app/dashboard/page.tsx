@@ -2,10 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Badge, Card, SectionTitle, StatStrip, btnGhost, btnPrimary } from "@/components/ui";
 import { Barcode } from "@/components/Barcode";
+import { CloseCampaignForm } from "@/components/CloseCampaignForm";
 import { CopyButton } from "@/components/CopyButton";
 import { ShareCode } from "@/components/ShareCode";
 import { getCurrentUser } from "@/lib/auth";
 import {
+  CAMPAIGN_STATUS_LABELS,
   CANCELLATION_REASONS,
   cancellationReasonLabel,
   COMMISSION_HOLD_DAYS,
@@ -14,11 +16,11 @@ import {
   tierForMonthlySales,
 } from "@/lib/domain/logic";
 import { businessStats, influencerStats, walletStats } from "@/lib/domain/stats";
-import type { Business, Campaign, CouponCode, Redemption, User } from "@/lib/domain/types";
+import type { Business, Campaign, CampaignStatus, CouponCode, Redemption, User } from "@/lib/domain/types";
 import { formatDate, formatILS } from "@/lib/format";
 import { getReadyStore } from "@/lib/store";
 import type { DataStore } from "@/lib/store/store";
-import { cancelSale, toggleCampaign } from "../actions";
+import { cancelSale, setCampaignState } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -38,12 +40,31 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
   if (!business) {
     return <p className="text-mut">לא נמצא עסק למשתמש הזה.</p>;
   }
-  const campaigns = await store.listCampaignsByBusiness(business.id);
-  const redemptions = await store.listRedemptionsByBusiness(business.id);
+  // Two independent queries, then two more that depend on them. This used to
+  // be a sequential loop of one query per campaign plus one per influencer
+  // name — every one of them a round trip to Ireland.
+  const [campaigns, redemptions] = await Promise.all([
+    store.listCampaignsByBusiness(business.id),
+    store.listRedemptionsByBusiness(business.id),
+  ]);
+  const [codes, influencerNames] = await Promise.all([
+    store.listCodesByCampaignIds(campaigns.map((c) => c.id)),
+    namesById(store, redemptions.map((r) => r.influencerId)),
+  ]);
   const stats = businessStats(redemptions, new Date());
   const codesByCampaign = new Map<string, CouponCode[]>();
-  for (const c of campaigns) codesByCampaign.set(c.id, await store.listCodesByCampaign(c.id));
-  const influencerNames = await namesById(store, redemptions.map((r) => r.influencerId));
+  for (const code of codes) {
+    const list = codesByCampaign.get(code.campaignId);
+    if (list) list.push(code);
+    else codesByCampaign.set(code.campaignId, [code]);
+  }
+
+  // Live work first, finished work last: a campaign you closed in March should
+  // not sit above the one running today.
+  const ORDER: Record<CampaignStatus, number> = { active: 0, paused: 1, closed: 2 };
+  const sorted = [...campaigns].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
+  const counts = { active: 0, paused: 0, closed: 0 };
+  for (const c of campaigns) counts[c.status]++;
 
   return (
     <div>
@@ -74,11 +95,31 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
       </div>
 
       <SectionTitle>הקמפיינים שלי</SectionTitle>
+      {campaigns.length > 0 ? (
+        <p className="-mt-2 mb-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-ok/40 bg-okbg px-2.5 py-1 font-semibold text-ok">
+            <span className="h-2 w-2 rounded-full bg-ok" aria-hidden="true" />
+            {counts.active} פעילים
+          </span>
+          {counts.paused > 0 ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-deal-deep/40 bg-mark/25 px-2.5 py-1 font-semibold text-ink">
+              <span className="h-2 w-2 rounded-full bg-deal-deep" aria-hidden="true" />
+              {counts.paused} מושהים
+            </span>
+          ) : null}
+          {counts.closed > 0 ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-ink/25 bg-paper px-2.5 py-1 font-semibold text-mut">
+              <span className="h-2 w-2 rounded-full bg-mut" aria-hidden="true" />
+              {counts.closed} סגורים
+            </span>
+          ) : null}
+        </p>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         {campaigns.length === 0 && (
           <p className="text-sm text-mut">עוד אין קמפיינים — צרו את הראשון כדי שמשפיענים יוכלו להצטרף.</p>
         )}
-        {campaigns.map((c) => (
+        {sorted.map((c) => (
           <Card
             key={c.id}
             // A paused campaign has to look switched off across the whole card.
@@ -91,8 +132,8 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
                 <h3 className="text-lg font-bold">{c.title}</h3>
                 {c.description ? <p className="mt-0.5 text-xs font-light text-mut">{c.description}</p> : null}
               </div>
-              <Badge tone={c.status === "active" ? "success" : "warning"}>
-                {c.status === "active" ? "פעיל" : "מושהה"}
+              <Badge tone={c.status === "active" ? "success" : c.status === "paused" ? "warning" : "default"}>
+                {CAMPAIGN_STATUS_LABELS[c.status]}
               </Badge>
             </div>
             <p className="mt-3 text-sm">
@@ -104,17 +145,28 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
               {" · "}
               {codesByCampaign.get(c.id)?.length ?? 0} משפיענים הצטרפו
             </p>
-            {c.status === "active" ? null : (
+            {c.status === "paused" ? (
               <p className="mt-3 rounded-lg border border-deal-deep/50 bg-mark/25 p-2.5 text-xs font-medium leading-relaxed text-ink">
-                הקמפיין מושהה — הוא לא מופיע ברשימת הקמפיינים למשפיענים, ואי אפשר לממש
-                את הקודים שלו. עמלות שכבר נצברו לא נפגעות.
+                מושהה — לא מופיע ברשימה למשפיענים, והקודים שלו לא נפדים. אפשר להפעיל
+                מחדש בכל רגע, ועמלות שכבר נצברו לא נפגעות.
               </p>
+            ) : null}
+            {c.status === "closed" ? (
+              <p className="mt-3 rounded-lg border border-ink/25 bg-label p-2.5 text-xs font-medium leading-relaxed text-mut">
+                סגור לצמיתות. הקמפיין נשאר כאן לצורך ההיסטוריה והתחשבנות, ועמלות
+                שנצברו בו ישולמו כרגיל.
+              </p>
+            ) : null}
+            {c.status === "closed" ? null : (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <form action={setCampaignState.bind(null, c.id, c.status === "active" ? "paused" : "active")}>
+                  <button className={c.status === "active" ? btnGhost : btnPrimary}>
+                    {c.status === "active" ? "השהיית קמפיין" : "הפעלה מחדש"}
+                  </button>
+                </form>
+                <CloseCampaignForm campaignId={c.id} title={c.title} />
+              </div>
             )}
-            <form action={toggleCampaign.bind(null, c.id)} className="mt-3">
-              <button className={c.status === "active" ? btnGhost : btnPrimary}>
-                {c.status === "active" ? "השהיית קמפיין" : "הפעלה מחדש"}
-              </button>
-            </form>
           </Card>
         ))}
       </div>
@@ -179,23 +231,28 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
 }
 
 async function InfluencerDashboard({ user, store }: { user: User; store: DataStore }) {
-  const codes = await store.listCodesByInfluencer(user.id);
-  const redemptions = await store.listRedemptionsByInfluencer(user.id);
+  const [codes, redemptions] = await Promise.all([
+    store.listCodesByInfluencer(user.id),
+    store.listRedemptionsByInfluencer(user.id),
+  ]);
   const now = new Date();
   const stats = influencerStats(redemptions, now);
   const wallet = walletStats(redemptions, now);
   const tier = tierForMonthlySales(stats.monthCount);
   const next = nextTier(stats.monthCount);
 
-  const campaignById = new Map<string, Campaign>();
+  // Was two queries per code, run one after another. Now two, whatever the
+  // influencer's code count.
+  const campaigns = await store.listCampaignsByIds([...new Set(codes.map((c) => c.campaignId))]);
+  const businesses = await store.listBusinessesByIds([
+    ...new Set(campaigns.map((c) => c.businessId)),
+  ]);
+  const businessById = new Map(businesses.map((b) => [b.id, b]));
+  const campaignById = new Map<string, Campaign>(campaigns.map((c) => [c.id, c]));
   const businessByCampaign = new Map<string, Business>();
-  for (const code of codes) {
-    const campaign = await store.getCampaign(code.campaignId);
-    if (campaign) {
-      campaignById.set(campaign.id, campaign);
-      const business = await store.getBusiness(campaign.businessId);
-      if (business) businessByCampaign.set(campaign.id, business);
-    }
+  for (const c of campaigns) {
+    const b = businessById.get(c.businessId);
+    if (b) businessByCampaign.set(c.id, b);
   }
 
   return (
@@ -303,12 +360,9 @@ async function InfluencerDashboard({ user, store }: { user: User; store: DataSto
 }
 
 async function namesById(store: DataStore, ids: string[]): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  for (const id of new Set(ids)) {
-    const u = await store.getUser(id);
-    if (u) map.set(id, u.name);
-  }
-  return map;
+  const unique = [...new Set(ids)];
+  const users = await store.listUsersByIds(unique);
+  return new Map(users.map((u) => [u.id, u.name]));
 }
 
 const COMMISSION_LABELS = {

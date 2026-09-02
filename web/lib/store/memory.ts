@@ -47,6 +47,11 @@ export class MemoryStore implements DataStore {
     return null;
   }
 
+  async listUsersByIds(ids: string[]): Promise<User[]> {
+    const want = new Set(ids);
+    return [...this.users.values()].filter((u) => want.has(u.id));
+  }
+
   async listUsers(): Promise<User[]> {
     return [...this.users.values()];
   }
@@ -71,6 +76,11 @@ export class MemoryStore implements DataStore {
     return null;
   }
 
+  async listBusinessesByIds(ids: string[]): Promise<Business[]> {
+    const want = new Set(ids);
+    return [...this.businesses.values()].filter((b) => want.has(b.id));
+  }
+
   async getBusinessByApiSecret(apiSecret: string): Promise<Business | null> {
     for (const b of this.businesses.values()) if (b.apiSecret === apiSecret) return b;
     return null;
@@ -88,6 +98,11 @@ export class MemoryStore implements DataStore {
 
   async listActiveCampaigns(): Promise<Campaign[]> {
     return [...this.campaigns.values()].filter((c) => c.status === "active");
+  }
+
+  async listCampaignsByIds(ids: string[]): Promise<Campaign[]> {
+    const want = new Set(ids);
+    return [...this.campaigns.values()].filter((c) => want.has(c.id));
   }
 
   async listCampaignsByBusiness(businessId: string): Promise<Campaign[]> {
@@ -131,6 +146,11 @@ export class MemoryStore implements DataStore {
 
   async listCodesByCampaign(campaignId: string): Promise<CouponCode[]> {
     return [...this.codes.values()].filter((c) => c.campaignId === campaignId);
+  }
+
+  async listCodesByCampaignIds(campaignIds: string[]): Promise<CouponCode[]> {
+    const want = new Set(campaignIds);
+    return [...this.codes.values()].filter((c) => want.has(c.campaignId));
   }
 
   async createRedemption(input: Omit<Redemption, "id" | "createdAt">): Promise<Redemption> {

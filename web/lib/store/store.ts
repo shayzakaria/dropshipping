@@ -21,6 +21,7 @@ export interface DataStore {
   getUserByEmail(email: string): Promise<User | null>;
   getUserByAuthId(authUserId: string): Promise<User | null>;
   listUsers(): Promise<User[]>;
+  listUsersByIds(ids: string[]): Promise<User[]>;
 
   // Businesses
   createBusiness(input: Omit<Business, "id" | "createdAt" | "apiSecret">): Promise<Business>;
@@ -36,12 +37,19 @@ export interface DataStore {
    * well-formed key looks like.
    */
   getBusinessByApiSecret(apiSecret: string): Promise<Business | null>;
+  /**
+   * Batched lookups. A page that renders N campaigns was doing N round trips
+   * for their businesses and N more for their codes; across the Atlantic that
+   * is most of the page's time. One query each instead.
+   */
+  listBusinessesByIds(ids: string[]): Promise<Business[]>;
 
   // Campaigns
   createCampaign(input: Omit<Campaign, "id" | "createdAt">): Promise<Campaign>;
   getCampaign(id: string): Promise<Campaign | null>;
   listActiveCampaigns(): Promise<Campaign[]>;
   listCampaignsByBusiness(businessId: string): Promise<Campaign[]>;
+  listCampaignsByIds(ids: string[]): Promise<Campaign[]>;
   setCampaignStatus(id: string, status: CampaignStatus): Promise<void>;
 
   // Coupon codes
@@ -50,6 +58,7 @@ export interface DataStore {
   getCodeForInfluencerCampaign(influencerId: string, campaignId: string): Promise<CouponCode | null>;
   listCodesByInfluencer(influencerId: string): Promise<CouponCode[]>;
   listCodesByCampaign(campaignId: string): Promise<CouponCode[]>;
+  listCodesByCampaignIds(campaignIds: string[]): Promise<CouponCode[]>;
 
   // Redemptions
   createRedemption(input: Omit<Redemption, "id" | "createdAt">): Promise<Redemption>;

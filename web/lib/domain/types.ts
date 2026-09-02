@@ -33,7 +33,17 @@ export interface Business {
   createdAt: string;
 }
 
-export type CampaignStatus = "active" | "paused";
+/**
+ * Pausing is a switch; closing is a door.
+ *
+ * A paused campaign is coming back — the business is out of stock, or the
+ * month's budget is spent. A closed one is finished, and keeping it in the
+ * same bucket as paused meant a dashboard where a campaign from March sat
+ * looking like something you might switch on tonight. Closing cannot be
+ * undone, which is exactly why it is worth being a separate state rather
+ * than a convention.
+ */
+export type CampaignStatus = "active" | "paused" | "closed";
 
 export interface Campaign {
   id: string;

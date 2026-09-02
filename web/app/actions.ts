@@ -12,7 +12,7 @@ import {
 import { cancelRedemption, redeemCode } from "@/lib/domain/service";
 import { getReadyStore, isDemoMode } from "@/lib/store";
 import { authErrorMessage, getAuthClient, isAuthConfigured } from "@/lib/supabase-auth";
-import type { Role } from "@/lib/domain/types";
+import type { CampaignStatus, Role } from "@/lib/domain/types";
 
 export interface FormState {
   error?: string;
@@ -190,28 +190,29 @@ export async function joinCampaign(campaignId: string): Promise<void> {
   revalidatePath("/dashboard");
 }
 
-export async function toggleCampaign(campaignId: string): Promise<void> {
+/**
+ * Move a campaign between active, paused and closed.
+ *
+ * Closing is one-way: a closed campaign cannot be reopened here, because the
+ * influencers who held its codes were told it had ended. Reopening would
+ * silently make their codes live again without anyone telling them.
+ */
+export async function setCampaignState(campaignId: string, next: CampaignStatus): Promise<void> {
   const user = await getCurrentUser();
   if (!user || user.role !== "business") redirect("/login");
   const store = await getReadyStore();
   const business = await store.getBusinessByOwner(user.id);
   const campaign = await store.getCampaign(campaignId);
   if (!business || !campaign || campaign.businessId !== business.id) {
-    return refuse("toggleCampaign", {
-      campaignId,
-      userId: user.id,
-      business: business?.id ?? null,
-      campaignBusiness: campaign?.businessId ?? null,
-    });
+    return refuse("setCampaignState", { campaignId, userId: user.id, next });
   }
-  const next = campaign.status === "active" ? "paused" : "active";
+  if (campaign.status === "closed") {
+    return refuse("setCampaignState", { campaignId, reason: "already closed" });
+  }
   await store.setCampaignStatus(campaignId, next);
-  // Read it back. An update that matches no row is not an error in PostgREST,
-  // so without this the action reports success for a write that never landed —
-  // exactly the shape of "I clicked and nothing changed".
   const after = await store.getCampaign(campaignId);
   if (after?.status !== next) {
-    console.error("[BOOST] toggleCampaign wrote nothing", { campaignId, wanted: next, got: after?.status ?? null });
+    console.error("[BOOST] setCampaignState wrote nothing", { campaignId, wanted: next, got: after?.status ?? null });
   }
   revalidatePath("/dashboard");
   revalidatePath("/campaigns");

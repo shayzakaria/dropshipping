@@ -1,6 +1,7 @@
 import type {
   CancellationReason,
   Campaign,
+  CampaignStatus,
   CommissionState,
   Redemption,
   Split,
@@ -153,6 +154,12 @@ export function parseCancellationReason(raw: unknown): CancellationReason {
     ? (raw as CancellationReason)
     : "returned";
 }
+
+export const CAMPAIGN_STATUS_LABELS: Record<CampaignStatus, string> = {
+  active: "פעיל",
+  paused: "מושהה",
+  closed: "סגור",
+};
 
 export const COMMISSION_HOLD_DAYS = 14;
 
