@@ -2,7 +2,7 @@ import { chromium } from "playwright-core";
 import { AxeBuilder } from "@axe-core/playwright";
 
 const BASE = "http://localhost:3111";
-const PAGES = ["/", "/login", "/campaigns", "/simulate", "/campaigns/new", "/dashboard", "/legal/accessibility", "/legal/terms", "/legal/privacy", "/legal/influencer"];
+const PAGES = ["/", "/login", "/campaigns", "/simulate", "/campaigns/new", "/dashboard", "/businesses", "/legal/accessibility", "/legal/terms", "/legal/privacy", "/legal/influencer"];
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const ctx = await browser.newContext({ locale: "he-IL", viewport: { width: 1280, height: 900 } });

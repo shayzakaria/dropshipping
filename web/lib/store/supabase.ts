@@ -37,6 +37,8 @@ type BusinessRow = {
   name: string;
   store_url: string | null;
   api_secret: string;
+  description: string | null;
+  logo_url: string | null;
   is_demo: boolean | null;
   created_at: string;
 };
@@ -99,6 +101,8 @@ const toBusiness = (r: BusinessRow): Business => ({
   name: r.name,
   storeUrl: r.store_url ?? undefined,
   apiSecret: r.api_secret,
+  description: r.description ?? undefined,
+  logoUrl: r.logo_url ?? undefined,
   isDemo: r.is_demo ?? false,
   createdAt: r.created_at,
 });
@@ -277,6 +281,8 @@ export class SupabaseStore implements DataStore {
         owner_id: input.ownerId,
         name: input.name,
         store_url: input.storeUrl ?? null,
+        description: input.description ?? null,
+        logo_url: input.logoUrl ?? null,
         is_demo: input.isDemo ?? false,
       })
       .select()
@@ -297,6 +303,29 @@ export class SupabaseStore implements DataStore {
       this.db.from("businesses").select().eq("owner_id", ownerId).maybeSingle<BusinessRow>(),
     );
     return r ? toBusiness(r) : null;
+  }
+
+  async updateBusinessProfile(
+    id: string,
+    patch: Pick<Business, "name" | "storeUrl" | "description" | "logoUrl">,
+  ): Promise<void> {
+    const { error } = await this.db
+      .from("businesses")
+      .update({
+        name: patch.name,
+        store_url: patch.storeUrl ?? null,
+        description: patch.description ?? null,
+        logo_url: patch.logoUrl ?? null,
+      })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  async listDirectoryBusinesses(): Promise<Business[]> {
+    const rows = await this.many<BusinessRow>(
+      this.db.from("businesses").select().order("created_at", { ascending: false }),
+    );
+    return rows.map(toBusiness);
   }
 
   async listBusinessesByIds(ids: string[]): Promise<Business[]> {

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Badge, Card, SectionTitle, StatStrip, btnGhost, btnPrimary } from "@/components/ui";
 import { Barcode } from "@/components/Barcode";
+import { BusinessLogo } from "@/components/BusinessLogo";
+import { BusinessProfileForm } from "@/components/BusinessProfileForm";
 import { CloseCampaignForm } from "@/components/CloseCampaignForm";
 import { CopyButton } from "@/components/CopyButton";
 import { ShareCode } from "@/components/ShareCode";
@@ -93,6 +95,32 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
           ]}
         />
       </div>
+
+      <SectionTitle>הכרטיס שלך בקטלוג</SectionTitle>
+      <Card>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-56 flex-1">
+            <p className="text-sm font-light leading-relaxed text-mut">
+              כך העסק שלך מופיע ב<Link href="/businesses" className="font-semibold text-deal-deep underline underline-offset-2">קטלוג הציבורי</Link>.
+              ההופעה שם חינם — אנחנו מרוויחים כשאתה מוכר, לא על להיראות.
+            </p>
+            <div className="mt-3 rounded-lg border-2 border-dashed border-ink/25 bg-paper p-3">
+              <div className="flex items-start gap-3">
+                <BusinessLogo business={business} size={44} />
+                <div className="min-w-0">
+                  <p className="font-bold leading-tight">{business.name}</p>
+                  <p className="mt-0.5 text-xs font-light leading-relaxed text-mut">
+                    {business.description || "אין עדיין תיאור — הכרטיס שלך ייראה ריק."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="min-w-64 flex-1">
+            <BusinessProfileForm business={business} />
+          </div>
+        </div>
+      </Card>
 
       <SectionTitle>הקמפיינים שלי</SectionTitle>
       {campaigns.length > 0 ? (

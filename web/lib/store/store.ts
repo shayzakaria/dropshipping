@@ -25,6 +25,13 @@ export interface DataStore {
 
   // Businesses
   createBusiness(input: Omit<Business, "id" | "createdAt" | "apiSecret">): Promise<Business>;
+  /** What a business can edit about itself. Ownership is checked by the caller. */
+  updateBusinessProfile(
+    id: string,
+    patch: Pick<Business, "name" | "storeUrl" | "description" | "logoUrl">,
+  ): Promise<void>;
+  /** Businesses that belong in the public directory, newest first. */
+  listDirectoryBusinesses(): Promise<Business[]>;
   getBusiness(id: string): Promise<Business | null>;
   getBusinessByOwner(ownerId: string): Promise<Business | null>;
   /**

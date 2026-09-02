@@ -90,6 +90,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <span className="mt-1 self-start text-[10px] font-semibold text-mut">שם זמני</span>
             </Link>
             <nav className="flex flex-wrap items-center gap-1">
+              <Link href="/businesses" className={navLink}>
+                העסקים שאיתנו
+              </Link>
               <Link href="/campaigns" className={navLink}>
                 קמפיינים
               </Link>

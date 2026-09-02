@@ -26,6 +26,10 @@ export interface Business {
   ownerId: string;
   name: string;
   storeUrl?: string;
+  /** One or two lines the business writes about itself, for its directory card */
+  description?: string;
+  /** Absolute http(s) URL to a logo. Always rendered with a fallback. */
+  logoUrl?: string;
   /** Secret used by the business's store (plugin/webhook) to authenticate redemption API calls */
   apiSecret: string;
   /** Seeded example data — see User.isDemo */

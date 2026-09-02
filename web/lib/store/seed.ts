@@ -35,6 +35,7 @@ export async function seed(store: MemoryStore): Promise<void> {
     ownerId: dana.id,
     name: "סטודיו דנה — אופנה ישראלית",
     storeUrl: "https://dana-fashion.example",
+    description: "אופנה ישראלית בעבודת יד, בסדרות קטנות. עסק לדוגמה בלבד.",
     isDemo: true,
   });
 

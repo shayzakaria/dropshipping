@@ -67,6 +67,18 @@ export class MemoryStore implements DataStore {
     return business;
   }
 
+  async updateBusinessProfile(
+    id: string,
+    patch: Pick<Business, "name" | "storeUrl" | "description" | "logoUrl">,
+  ): Promise<void> {
+    const b = this.businesses.get(id);
+    if (b) this.businesses.set(id, { ...b, ...patch });
+  }
+
+  async listDirectoryBusinesses(): Promise<Business[]> {
+    return [...this.businesses.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
   async getBusiness(id: string): Promise<Business | null> {
     return this.businesses.get(id) ?? null;
   }

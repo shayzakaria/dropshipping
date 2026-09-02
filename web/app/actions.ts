@@ -132,6 +132,52 @@ export async function signIn(_prev: FormState, formData: FormData): Promise<Form
   redirect("/dashboard");
 }
 
+/**
+ * The business edits its own directory card. Ownership is enforced here, not
+ * assumed from the form: the id comes from the session, never the request.
+ */
+export async function updateBusinessProfile(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "business") redirect("/login");
+  const store = await getReadyStore();
+  const business = await store.getBusinessByOwner(user.id);
+  if (!business) return { error: "לא נמצא עסק למשתמש הזה" };
+
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const storeUrl = String(formData.get("storeUrl") ?? "").trim();
+  const logoUrl = String(formData.get("logoUrl") ?? "").trim();
+
+  if (!name) return { error: "לעסק צריך שם" };
+  if (description.length > 300) return { error: "התיאור ארוך מדי — עד 300 תווים" };
+  // These two end up in a redirect target and an <img src>, so anything that
+  // is not a plain http(s) URL is refused rather than stored and rendered.
+  if (storeUrl && !isHttpUrl(storeUrl)) return { error: "כתובת החנות צריכה להתחיל ב-https" };
+  if (logoUrl && !isHttpUrl(logoUrl)) return { error: "כתובת הלוגו צריכה להתחיל ב-https" };
+
+  await store.updateBusinessProfile(business.id, {
+    name,
+    storeUrl: storeUrl || undefined,
+    description: description || undefined,
+    logoUrl: logoUrl || undefined,
+  });
+  revalidatePath("/dashboard");
+  revalidatePath("/businesses");
+  return { ok: true, notice: "הפרופיל עודכן" };
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const u = new URL(value);
+    return u.protocol === "https:" || u.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 export async function createCampaign(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await getCurrentUser();
   if (!user || user.role !== "business") redirect("/login");
