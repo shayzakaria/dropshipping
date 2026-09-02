@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import type {
+  AdminAction,
   Business,
   BusinessFollow,
   CancellationReason,
@@ -13,7 +14,7 @@ import type {
 } from "../domain/types";
 import { computeAdminSnapshot } from "../domain/admin";
 import { generateCode, monthKey, normalizeCode } from "../domain/logic";
-import type { AdminSnapshot, DataStore } from "./store";
+import type { AdminSnapshot, DataStore, SupportView } from "./store";
 
 export class MemoryStore implements DataStore {
   users = new Map<string, User>();
@@ -85,6 +86,64 @@ export class MemoryStore implements DataStore {
 
   async listDirectoryBusinesses(): Promise<Business[]> {
     return [...this.businesses.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  private readonly adminLog: AdminAction[] = [];
+
+  async setUserSuspended(userId: string, reason: string | null): Promise<void> {
+    const u = this.users.get(userId);
+    if (!u) return;
+    this.users.set(userId, {
+      ...u,
+      suspendedAt: reason ? this.now() : undefined,
+      suspendedReason: reason ?? undefined,
+    });
+  }
+
+  async setCodeStatus(codeId: string, status: CouponCode["status"]): Promise<void> {
+    const c = this.codes.get(codeId);
+    if (c) this.codes.set(codeId, { ...c, status });
+  }
+
+  async recordAdminAction(input: Omit<AdminAction, "id" | "createdAt">): Promise<AdminAction> {
+    const row: AdminAction = { ...input, id: randomUUID(), createdAt: this.now() };
+    this.adminLog.push(row);
+    return row;
+  }
+
+  async listAdminActions(limit: number): Promise<AdminAction[]> {
+    return [...this.adminLog].reverse().slice(0, limit);
+  }
+
+  async searchUsers(query: string, limit: number): Promise<User[]> {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return [...this.users.values()]
+      .filter((u) => u.name.toLowerCase().includes(q) || u.email.includes(q))
+      .slice(0, limit);
+  }
+
+  async supportView(userId: string): Promise<SupportView | null> {
+    const user = this.users.get(userId);
+    if (!user) return null;
+    const business = [...this.businesses.values()].find((b) => b.ownerId === userId) ?? null;
+    const campaigns = business
+      ? [...this.campaigns.values()].filter((c) => c.businessId === business.id)
+      : [];
+    const rawCodes = [...this.codes.values()].filter((c) => c.influencerId === userId);
+    const clicks = await this.countClicksByCodeIds(rawCodes.map((c) => c.id), new Date(0));
+    const codes = rawCodes.map((c) => ({
+      ...c,
+      campaignTitle: this.campaigns.get(c.campaignId)?.title ?? "—",
+      clicks: clicks.get(c.id) ?? 0,
+    }));
+    const redemptions = [...this.redemptions.values()].filter(
+      (r) => r.influencerId === userId || (business !== null && r.businessId === business.id),
+    );
+    const followedBusinessNames = [...this.follows.values()]
+      .filter((f) => f.influencerId === userId)
+      .map((f) => this.businesses.get(f.businessId)?.name ?? "—");
+    return { user, business, campaigns, codes, redemptions, followedBusinessNames };
   }
 
   async setBusinessFeaturedUntil(id: string, until: string | null): Promise<void> {

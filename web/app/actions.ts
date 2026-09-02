@@ -311,6 +311,148 @@ export async function setFeatured(businessId: string, formData: FormData): Promi
   revalidatePath("/admin");
 }
 
+/**
+ * Operator support actions.
+ *
+ * Every one of these touches someone else's account, so each writes to the
+ * audit log *before* it acts. If the action then fails we have logged an
+ * attempt that did not happen, which is recoverable; logging afterwards
+ * would mean a failure between the two leaves a change nobody can trace,
+ * which is not.
+ *
+ * There is deliberately no "sign in as this user". It is the tool support
+ * teams always want, and it turns the log into a lie: every action would be
+ * recorded as the user's own, money could move under their name, and nothing
+ * afterwards could tell the difference.
+ */
+async function requireAdmin() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!user.isAdmin) redirect("/dashboard");
+  return user;
+}
+
+/** Lock an account, or unlock it. An empty reason unlocks. */
+export async function adminSetSuspended(userId: string, formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const store = await getReadyStore();
+  const reason = String(formData.get("reason") ?? "").trim();
+  const target = await store.getUser(userId);
+  if (!target) return refuse("adminSetSuspended", { userId });
+  // An operator locking themselves out would need database access to undo.
+  if (target.id === admin.id) return refuse("adminSetSuspended", { reason: "self" });
+
+  await store.recordAdminAction({
+    actorId: admin.id,
+    action: reason ? "suspend_user" : "unsuspend_user",
+    subjectKind: "user",
+    subjectId: userId,
+    detail: { email: target.email, reason: reason || null },
+  });
+  await store.setUserSuspended(userId, reason || null);
+  revalidatePath("/admin");
+}
+
+/** Disable a coupon code, or put it back. Used when a code is being abused. */
+export async function adminSetCodeStatus(codeId: string, formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const store = await getReadyStore();
+  const status = formData.get("status") === "active" ? "active" : "disabled";
+  await store.recordAdminAction({
+    actorId: admin.id,
+    action: status === "active" ? "enable_code" : "disable_code",
+    subjectKind: "code",
+    subjectId: codeId,
+  });
+  await store.setCodeStatus(codeId, status);
+  revalidatePath("/admin");
+}
+
+/**
+ * Fix a business profile for an owner who cannot. The operator changes what
+ * the business could have changed itself — nothing about money.
+ */
+export async function adminUpdateBusiness(businessId: string, formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const store = await getReadyStore();
+  const business = await store.getBusiness(businessId);
+  if (!business) return refuse("adminUpdateBusiness", { businessId });
+
+  const name = String(formData.get("name") ?? "").trim() || business.name;
+  const description = String(formData.get("description") ?? "").trim();
+  const storeUrl = String(formData.get("storeUrl") ?? "").trim();
+  const logoUrl = String(formData.get("logoUrl") ?? "").trim();
+  if (storeUrl && !isHttpUrl(storeUrl)) return refuse("adminUpdateBusiness", { field: "storeUrl" });
+  if (logoUrl && !isHttpUrl(logoUrl)) return refuse("adminUpdateBusiness", { field: "logoUrl" });
+
+  await store.recordAdminAction({
+    actorId: admin.id,
+    action: "edit_business_profile",
+    subjectKind: "business",
+    subjectId: businessId,
+    detail: { before: { name: business.name, description: business.description ?? null } },
+  });
+  await store.updateBusinessProfile(businessId, {
+    name,
+    description: description || undefined,
+    storeUrl: storeUrl || undefined,
+    logoUrl: logoUrl || undefined,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/businesses");
+}
+
+/**
+ * Void a commission on behalf of a business that cannot reach its own
+ * dashboard. Same domain rule as the business's own button — an operator
+ * gets no extra power over money, only a way to press it for someone.
+ */
+export async function adminCancelRedemption(redemptionId: string, formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const store = await getReadyStore();
+  const redemption = await store.getRedemption(redemptionId);
+  if (!redemption) return refuse("adminCancelRedemption", { redemptionId });
+  const reason = parseCancellationReason(formData.get("reason"));
+
+  await store.recordAdminAction({
+    actorId: admin.id,
+    action: "cancel_redemption",
+    subjectKind: "redemption",
+    subjectId: redemptionId,
+    detail: { reason, amount: redemption.influencerCommission, influencerId: redemption.influencerId },
+  });
+  try {
+    await cancelRedemption(store, { businessId: redemption.businessId, redemptionId, reason });
+  } catch (e) {
+    if (!(e instanceof DomainError)) throw e;
+    refuse("adminCancelRedemption", { redemptionId, code: e.code });
+  }
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+}
+
+/** Change a campaign's state for a business that asked us to. */
+export async function adminSetCampaignState(campaignId: string, formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const store = await getReadyStore();
+  const campaign = await store.getCampaign(campaignId);
+  if (!campaign || campaign.status === "closed") {
+    return refuse("adminSetCampaignState", { campaignId, status: campaign?.status });
+  }
+  const raw = String(formData.get("status") ?? "");
+  const next: CampaignStatus = raw === "paused" ? "paused" : raw === "closed" ? "closed" : "active";
+  await store.recordAdminAction({
+    actorId: admin.id,
+    action: "set_campaign_state",
+    subjectKind: "campaign",
+    subjectId: campaignId,
+    detail: { from: campaign.status, to: next },
+  });
+  await store.setCampaignStatus(campaignId, next);
+  revalidatePath("/admin");
+  revalidatePath("/campaigns");
+}
+
 /** The business voids a commission after a return. Ownership is enforced. */
 export async function cancelSale(redemptionId: string, formData: FormData): Promise<void> {
   const user = await getCurrentUser();

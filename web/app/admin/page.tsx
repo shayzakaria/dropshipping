@@ -40,7 +40,15 @@ export default async function AdminPage() {
           <h1 className="font-display text-6xl leading-none">ניהול מערכת</h1>
           <p className="mt-2 text-sm text-mut">30 הימים האחרונים · הנתונים חיים, לא מטמון</p>
         </div>
-        <Badge tone="warning">רואה את זה רק מי שסומן כמנהל</Badge>
+        <span className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/admin/users"
+            className="inline-flex min-h-11 items-center rounded-lg bg-ink px-4 text-sm font-bold text-label transition hover:bg-ink/85"
+          >
+            תמיכה בחשבונות
+          </Link>
+          <Badge tone="warning">רואה את זה רק מי שסומן כמנהל</Badge>
+        </span>
       </div>
 
       {/* The one number this dashboard leads with: what the platform earned. */}

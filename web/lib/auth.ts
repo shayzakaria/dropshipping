@@ -18,16 +18,26 @@ export async function getCurrentUser(): Promise<User | null> {
   if (isAuthConfigured()) {
     const supabase = await getAuthClient();
     const { data } = await supabase.auth.getUser();
-    if (data.user) {
-      return store.getUserByAuthId(data.user.id);
-    }
+    if (data.user) return active(await store.getUserByAuthId(data.user.id));
   }
 
   if (!isDemoMode()) return null;
   const jar = await cookies();
   const uid = jar.get(SESSION_COOKIE)?.value;
   if (!uid) return null;
-  return store.getUser(uid);
+  return active(await store.getUser(uid));
+}
+
+/**
+ * A suspended account is treated as signed out, everywhere.
+ *
+ * This sits on the single exit from getCurrentUser on purpose. The first
+ * version checked it inside the Supabase branch only, and the demo sign-in
+ * path walked straight past it — the shape of bug that appears the moment an
+ * auth check lives on one route instead of on the answer every route uses.
+ */
+function active(user: User | null): User | null {
+  return user?.suspendedAt ? null : user;
 }
 
 /** Demo sign-in only. Real sessions are established by Supabase Auth. */

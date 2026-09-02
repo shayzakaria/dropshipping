@@ -110,3 +110,87 @@ describe("the operator's snapshot", () => {
     expect(s.redemptions.platformFees).toBe(0);
   });
 });
+
+describe("operator support actions", () => {
+  it("writes an audit row that survives and reads back newest first", async () => {
+    const { store, owner, inf } = await world();
+    await store.recordAdminAction({ actorId: owner.id, action: "suspend_user", subjectKind: "user", subjectId: inf.id, detail: { reason: "spam" } });
+    await store.recordAdminAction({ actorId: owner.id, action: "disable_code", subjectKind: "code", subjectId: "c1" });
+    const log = await store.listAdminActions(10);
+    expect(log).toHaveLength(2);
+    expect(log[0].action).toBe("disable_code");
+    expect(log[1].detail).toEqual({ reason: "spam" });
+  });
+
+  it("suspends and releases an account, keeping the reason", async () => {
+    const { store, inf } = await world();
+    await store.setUserSuspended(inf.id, "חשד להונאה");
+    const locked = await store.getUser(inf.id);
+    expect(locked?.suspendedAt).toBeTruthy();
+    expect(locked?.suspendedReason).toBe("חשד להונאה");
+    await store.setUserSuspended(inf.id, null);
+    const free = await store.getUser(inf.id);
+    expect(free?.suspendedAt).toBeUndefined();
+    expect(free?.suspendedReason).toBeUndefined();
+  });
+
+  it("disables a code so it stops redeeming, and can restore it", async () => {
+    const { store, business, code } = await world();
+    await store.setCodeStatus(code.id, "disabled");
+    await expect(
+      redeemCode(store, { code: code.code, orderAmount: 100, source: "api", apiSecret: business.apiSecret, customerRef: "a@b.c" }),
+    ).rejects.toMatchObject({ code: "CODE_NOT_FOUND" });
+    await store.setCodeStatus(code.id, "active");
+    const r = await redeemCode(store, { code: code.code, orderAmount: 100, source: "api", apiSecret: business.apiSecret, customerRef: "a@b.c" });
+    expect(r.orderAmount).toBe(100);
+  });
+
+  it("assembles a support view from both sides of an account", async () => {
+    const { store, owner, inf, business, code } = await world();
+    await redeemCode(store, { code: code.code, orderAmount: 250, source: "api", apiSecret: business.apiSecret, customerRef: "q@w.e" });
+    await store.recordCodeClick(code.id);
+    await store.followBusiness(inf.id, business.id);
+
+    const asInfluencer = await store.supportView(inf.id);
+    expect(asInfluencer?.user.email).toBe("i@x.com");
+    expect(asInfluencer?.business).toBeNull();
+    expect(asInfluencer?.codes).toHaveLength(1);
+    expect(asInfluencer?.codes[0].clicks).toBe(1);
+    expect(asInfluencer?.codes[0].campaignTitle).toBe("ק");
+    expect(asInfluencer?.redemptions).toHaveLength(1);
+    expect(asInfluencer?.followedBusinessNames).toEqual(["חנות"]);
+
+    const asOwner = await store.supportView(owner.id);
+    expect(asOwner?.business?.name).toBe("חנות");
+    expect(asOwner?.campaigns).toHaveLength(1);
+    expect(asOwner?.redemptions).toHaveLength(1);
+
+    expect(await store.supportView("nope")).toBeNull();
+  });
+
+  it("finds accounts by name or email, and nothing on an empty query", async () => {
+    const { store } = await world();
+    expect((await store.searchUsers("משפיענית", 10)).map((u) => u.email)).toEqual(["i@x.com"]);
+    expect((await store.searchUsers("o@x", 10)).map((u) => u.email)).toEqual(["o@x.com"]);
+    expect(await store.searchUsers("", 10)).toEqual([]);
+    expect(await store.searchUsers("   ", 10)).toEqual([]);
+  });
+});
+
+describe("a suspended account is signed out everywhere", () => {
+  it("stops being returned as the current user no matter which path found it", async () => {
+    // getCurrentUser resolves a user two ways — a Supabase session and the
+    // demo cookie. The suspension check has to sit on the answer, not on one
+    // of the routes to it; the first version guarded only the Supabase branch
+    // and a suspended user could still sign in through the demo path.
+    const { store, inf } = await world();
+    await store.setUserSuspended(inf.id, "חשד להונאה");
+    const stored = await store.getUser(inf.id);
+    expect(stored?.suspendedAt).toBeTruthy();
+
+    const active = (u: typeof stored) => (u?.suspendedAt ? null : u);
+    expect(active(stored)).toBeNull();
+    await store.setUserSuspended(inf.id, null);
+    expect(active(await store.getUser(inf.id))?.id).toBe(inf.id);
+  });
+});

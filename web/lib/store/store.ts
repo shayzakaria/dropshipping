@@ -1,4 +1,5 @@
 import type {
+  AdminAction,
   Business,
   BusinessFollow,
   CancellationReason,
@@ -36,6 +37,17 @@ export interface DataStore {
   listDirectoryBusinesses(): Promise<Business[]>;
   /** Operator only: paid placement. `null` clears it. */
   setBusinessFeaturedUntil(id: string, until: string | null): Promise<void>;
+
+  // ---- Operator support. Every one of these is written to the audit log by
+  // the action layer before it runs; the store itself does not police that.
+  /** Lock or unlock an account. `null` unlocks. */
+  setUserSuspended(userId: string, reason: string | null): Promise<void>;
+  setCodeStatus(codeId: string, status: CouponCode["status"]): Promise<void>;
+  recordAdminAction(input: Omit<AdminAction, "id" | "createdAt">): Promise<AdminAction>;
+  listAdminActions(limit: number): Promise<AdminAction[]>;
+  /** Everything an operator needs to answer "what is going on with this account". */
+  supportView(userId: string): Promise<SupportView | null>;
+  searchUsers(query: string, limit: number): Promise<User[]>;
 
   // An influencer following a business
   followBusiness(influencerId: string, businessId: string): Promise<void>;
@@ -154,4 +166,14 @@ export interface AdminSnapshot {
   topBusinesses: Array<{ id: string; name: string; sales: number; gmv: number }>;
   topInfluencers: Array<{ id: string; name: string; sales: number; commission: number }>;
   recent: Redemption[];
+}
+
+/** One account, assembled for an operator answering a support question. */
+export interface SupportView {
+  user: User;
+  business: Business | null;
+  campaigns: Campaign[];
+  codes: Array<CouponCode & { campaignTitle: string; clicks: number }>;
+  redemptions: Redemption[];
+  followedBusinessNames: string[];
 }

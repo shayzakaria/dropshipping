@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
+  AdminAction,
   Business,
   BusinessFollow,
   CancellationReason,
@@ -14,7 +15,7 @@ import type {
 } from "../domain/types";
 import { generateCode, normalizeCode } from "../domain/logic";
 import { computeAdminSnapshot } from "../domain/admin";
-import type { AdminSnapshot, DataStore } from "./store";
+import type { AdminSnapshot, DataStore, SupportView } from "./store";
 
 /**
  * Supabase-backed DataStore. Runs server-side only with the project's secret
@@ -33,6 +34,8 @@ type ProfileRow = {
   auth_user_id: string | null;
   is_demo: boolean | null;
   is_admin: boolean | null;
+  suspended_at: string | null;
+  suspended_reason: string | null;
   created_at: string;
 };
 type BusinessRow = {
@@ -101,6 +104,8 @@ const toUser = (r: ProfileRow): User => ({
   authUserId: r.auth_user_id ?? undefined,
   isDemo: r.is_demo ?? false,
   isAdmin: r.is_admin ?? false,
+  suspendedAt: r.suspended_at ?? undefined,
+  suspendedReason: r.suspended_reason ?? undefined,
   createdAt: r.created_at,
 });
 
@@ -131,6 +136,26 @@ const toCampaign = (r: CampaignRow): Campaign => ({
   productName: r.product_name ?? undefined,
   productUrl: r.product_url ?? undefined,
   status: r.status,
+  createdAt: r.created_at,
+});
+
+type AdminActionRow = {
+  id: string;
+  actor_id: string;
+  action: string;
+  subject_kind: AdminAction["subjectKind"];
+  subject_id: string;
+  detail: Record<string, unknown> | null;
+  created_at: string;
+};
+
+const toAdminAction = (r: AdminActionRow): AdminAction => ({
+  id: r.id,
+  actorId: r.actor_id,
+  action: r.action,
+  subjectKind: r.subject_kind,
+  subjectId: r.subject_id,
+  detail: r.detail ?? undefined,
   createdAt: r.created_at,
 });
 
@@ -339,6 +364,108 @@ export class SupabaseStore implements DataStore {
       this.db.from("businesses").select().order("created_at", { ascending: false }),
     );
     return rows.map(toBusiness);
+  }
+
+  async setUserSuspended(userId: string, reason: string | null): Promise<void> {
+    const { error } = await this.db
+      .from("profiles")
+      .update({ suspended_at: reason ? new Date().toISOString() : null, suspended_reason: reason })
+      .eq("id", userId);
+    if (error) throw new Error(error.message);
+  }
+
+  async setCodeStatus(codeId: string, status: CouponCode["status"]): Promise<void> {
+    const { error } = await this.db.from("coupon_codes").update({ status }).eq("id", codeId);
+    if (error) throw new Error(error.message);
+  }
+
+  async recordAdminAction(input: Omit<AdminAction, "id" | "createdAt">): Promise<AdminAction> {
+    const { data, error } = await this.db
+      .from("admin_actions")
+      .insert({
+        actor_id: input.actorId,
+        action: input.action,
+        subject_kind: input.subjectKind,
+        subject_id: input.subjectId,
+        detail: input.detail ?? null,
+      })
+      .select()
+      .single<AdminActionRow>();
+    if (error) throw new Error(error.message);
+    return toAdminAction(data!);
+  }
+
+  async listAdminActions(limit: number): Promise<AdminAction[]> {
+    const rows = await this.many<AdminActionRow>(
+      this.db.from("admin_actions").select().order("created_at", { ascending: false }).limit(limit),
+    );
+    return rows.map(toAdminAction);
+  }
+
+  async searchUsers(query: string, limit: number): Promise<User[]> {
+    const q = query.trim();
+    if (!q) return [];
+    // Escape PostgREST's or() separators so a comma or paren in the query
+    // cannot break out of the filter it is embedded in.
+    const safe = q.replace(/[,()\\*]/g, " ").trim();
+    if (!safe) return [];
+    const rows = await this.many<ProfileRow>(
+      this.db.from("profiles").select().or(`name.ilike.%${safe}%,email.ilike.%${safe}%`).limit(limit),
+    );
+    return rows.map(toUser);
+  }
+
+  async supportView(userId: string): Promise<SupportView | null> {
+    const profile = await this.one<ProfileRow>(
+      this.db.from("profiles").select().eq("id", userId).maybeSingle<ProfileRow>(),
+    );
+    if (!profile) return null;
+    const user = toUser(profile);
+    const businessRow = await this.one<BusinessRow>(
+      this.db.from("businesses").select().eq("owner_id", userId).maybeSingle<BusinessRow>(),
+    );
+    const business = businessRow ? toBusiness(businessRow) : null;
+
+    const [campaignRows, codeRows, mine, theirs, follows] = await Promise.all([
+      business
+        ? this.many<CampaignRow>(this.db.from("campaigns").select().eq("business_id", business.id))
+        : Promise.resolve([]),
+      this.many<CodeRow>(this.db.from("coupon_codes").select().eq("influencer_id", userId)),
+      this.many<RedemptionRow>(this.db.from("redemptions").select().eq("influencer_id", userId)),
+      business
+        ? this.many<RedemptionRow>(this.db.from("redemptions").select().eq("business_id", business.id))
+        : Promise.resolve([]),
+      this.listFollowsByInfluencer(userId),
+    ]);
+
+    const campaignTitles = new Map(campaignRows.map((c) => [c.id, c.title]));
+    const missing = codeRows.map((c) => c.campaign_id).filter((id) => !campaignTitles.has(id));
+    if (missing.length > 0) {
+      for (const c of await this.listCampaignsByIds([...new Set(missing)])) {
+        campaignTitles.set(c.id, c.title);
+      }
+    }
+    const clicks = await this.countClicksByCodeIds(codeRows.map((c) => c.id), new Date(0));
+    const followedBusinesses = await this.listBusinessesByIds(follows.map((f) => f.businessId));
+
+    // A business owner who is also an influencer would otherwise see a sale twice
+    const seen = new Set<string>();
+    const redemptions = [...mine, ...theirs]
+      .filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)))
+      .map(toRedemption);
+
+    return {
+      user,
+      business,
+      campaigns: campaignRows.map(toCampaign),
+      codes: codeRows.map((c) => ({
+        ...toCode(c),
+        campaignTitle: campaignTitles.get(c.campaign_id) ?? "—",
+        clicks: clicks.get(c.id) ?? 0,
+      })),
+      redemptions,
+      followedBusinessNames: followedBusinesses.map((b) => b.name),
+    };
   }
 
   async setBusinessFeaturedUntil(id: string, until: string | null): Promise<void> {

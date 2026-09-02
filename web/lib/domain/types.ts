@@ -24,6 +24,9 @@ export interface User {
    * address would be self-grantable by whoever registered it first.
    */
   isAdmin?: boolean;
+  /** Locked by an operator. A suspended account cannot sign in or earn. */
+  suspendedAt?: string;
+  suspendedReason?: string;
   createdAt: string;
 }
 
@@ -163,5 +166,22 @@ export interface Tier {
 export interface BusinessFollow {
   influencerId: string;
   businessId: string;
+  createdAt: string;
+}
+
+/**
+ * One thing an operator did on someone else's behalf.
+ *
+ * Append-only. The application never deletes a row: the point of the record
+ * is to be able to answer "who took my commission" months later, and a log
+ * that can be tidied answers nothing.
+ */
+export interface AdminAction {
+  id: string;
+  actorId: string;
+  action: string;
+  subjectKind: "user" | "business" | "campaign" | "code" | "redemption";
+  subjectId: string;
+  detail?: Record<string, unknown>;
   createdAt: string;
 }
