@@ -5,6 +5,8 @@ import "./globals.css";
 import { getCurrentUser } from "@/lib/auth";
 import { logout } from "./actions";
 import { TagIcon } from "@/components/icons";
+import { AccessibilityMenu } from "@/components/AccessibilityMenu";
+import { CookieNotice } from "@/components/CookieNotice";
 import { isPersistent } from "@/lib/store";
 
 export const metadata: Metadata = {
@@ -71,8 +73,18 @@ const FOOTER_LINKS = [
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   return (
-    <html lang="he" dir="rtl">
-      <body className={`${rubik.variable} ${karantina.variable} ${mono.variable} antialiased`}>
+    /*
+     * The font variables belong on <html>, not <body>.
+     *
+     * Tailwind's @theme puts --font-sans and friends on :root, and those
+     * definitions reference --font-rubik. A custom property resolves against
+     * its own element, so with the variables declared on <body> — a child —
+     * :root found nothing, the declaration became invalid, and every heading
+     * on the site silently fell back to the system stack. The design is built
+     * on Karantina; without it there is no design.
+     */
+    <html lang="he" dir="rtl" className={`${rubik.variable} ${karantina.variable} ${mono.variable}`}>
+      <body className="antialiased">
         <template data-design-contract="" dangerouslySetInnerHTML={{ __html: DESIGN_CONTRACT }} />
         <header className="border-b-2 border-ink bg-label">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
@@ -141,6 +153,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </p>
           </div>
         </footer>
+        <AccessibilityMenu />
+        <CookieNotice />
       </body>
     </html>
   );
