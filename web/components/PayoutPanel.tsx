@@ -44,6 +44,22 @@ export function PayoutPanel({
 }) {
   const [state, formAction, saving] = useActionState<FormState, FormData>(savePayoutDetails, {});
   const [editing, setEditing] = useState(false);
+  /*
+   * Controlled, because React resets an uncontrolled form once its action
+   * resolves. Rejected once, and someone would find the account number they
+   * just typed replaced by whatever was stored before — with no sign that it
+   * happened. Bank details are exactly the wrong thing to silently revert.
+   */
+  const [form, setForm] = useState({
+    legalName: details?.legalName ?? "",
+    nationalId: details?.nationalId ?? "",
+    bankName: details?.bankName ?? "",
+    branch: details?.branch ?? "",
+    accountNumber: details?.accountNumber ?? "",
+    taxStatus: details?.taxStatus ?? "",
+  });
+  const set = (k: keyof typeof form) => (e: { target: { value: string } }) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
   const openRequest = requests.find((r) => r.status === "requested");
 
   if (!canWithdraw && !details && requests.length === 0) {
@@ -90,27 +106,27 @@ export function PayoutPanel({
           </p>
           <label className="block text-sm">
             <span className="font-medium">שם מלא כפי שמופיע בבנק</span>
-            <input name="legalName" defaultValue={details?.legalName ?? ""} required className={`${inputCls} mt-1`} />
+            <input name="legalName" value={form.legalName} onChange={set("legalName")} required className={`${inputCls} mt-1`} />
           </label>
           <label className="block text-sm">
             <span className="font-medium">תעודת זהות</span>
-            <input name="nationalId" defaultValue={details?.nationalId ?? ""} inputMode="numeric" required className={`${inputCls} mt-1 font-mono`} dir="ltr" />
+            <input name="nationalId" value={form.nationalId} onChange={set("nationalId")} inputMode="numeric" required className={`${inputCls} mt-1 font-mono`} dir="ltr" />
           </label>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="block text-sm">
               <span className="font-medium">בנק</span>
-              <select name="bankName" defaultValue={details?.bankName ?? ""} required className={`${inputCls} mt-1`}>
+              <select name="bankName" value={form.bankName} onChange={set("bankName")} required className={`${inputCls} mt-1`}>
                 <option value="">בחרו…</option>
                 {BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
             </label>
             <label className="block text-sm">
               <span className="font-medium">סניף</span>
-              <input name="branch" defaultValue={details?.branch ?? ""} inputMode="numeric" required className={`${inputCls} mt-1 font-mono`} dir="ltr" />
+              <input name="branch" value={form.branch} onChange={set("branch")} inputMode="numeric" required className={`${inputCls} mt-1 font-mono`} dir="ltr" />
             </label>
             <label className="block text-sm">
               <span className="font-medium">מספר חשבון</span>
-              <input name="accountNumber" defaultValue={details?.accountNumber ?? ""} inputMode="numeric" required className={`${inputCls} mt-1 font-mono`} dir="ltr" />
+              <input name="accountNumber" value={form.accountNumber} onChange={set("accountNumber")} inputMode="numeric" required className={`${inputCls} mt-1 font-mono`} dir="ltr" />
             </label>
           </div>
           <fieldset>
@@ -118,7 +134,7 @@ export function PayoutPanel({
             <div className="mt-1.5 space-y-1.5">
               {TAX.map((t) => (
                 <label key={t.value} className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-ink/25 bg-label p-2.5 text-sm transition hover:bg-paper">
-                  <input type="radio" name="taxStatus" value={t.value} defaultChecked={details?.taxStatus === t.value} required className="mt-0.5 h-5 w-5 flex-none accent-deal-deep" />
+                  <input type="radio" name="taxStatus" value={t.value} checked={form.taxStatus === t.value} onChange={set("taxStatus")} required className="mt-0.5 h-5 w-5 flex-none accent-deal-deep" />
                   <span>
                     <span className="block font-semibold">{t.label}</span>
                     <span className="block text-xs font-light text-mut">{t.hint}</span>

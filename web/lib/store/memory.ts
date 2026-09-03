@@ -6,17 +6,19 @@ import type {
   CancellationReason,
   Campaign,
   CampaignScope,
+  CodeSource,
   CampaignStatus,
   CouponCode,
   PayoutDetails,
   PayoutRequest,
   PayoutStatus,
+  PoolStatus,
   Redemption,
   RedemptionStatus,
   User,
 } from "../domain/types";
 import { computeAdminSnapshot } from "../domain/admin";
-import { generateCode, monthKey, normalizeCode } from "../domain/logic";
+import { generateCode, monthKey, normalizeCode, PoolEmptyError } from "../domain/logic";
 import type { AdminSnapshot, DataStore, LogoFile, SupportView } from "./store";
 
 export class MemoryStore implements DataStore {
@@ -251,9 +253,18 @@ export class MemoryStore implements DataStore {
   }
 
   async createCampaign(
-    input: Omit<Campaign, "id" | "createdAt" | "scope"> & { scope?: CampaignScope },
+    input: Omit<Campaign, "id" | "createdAt" | "scope" | "codeSource"> & {
+      scope?: CampaignScope;
+      codeSource?: CodeSource;
+    },
   ): Promise<Campaign> {
-    const campaign: Campaign = { scope: "store", ...input, id: randomUUID(), createdAt: this.now() };
+    const campaign: Campaign = {
+      scope: "store",
+      codeSource: "pool",
+      ...input,
+      id: randomUUID(),
+      createdAt: this.now(),
+    };
     this.campaigns.set(campaign.id, campaign);
     return campaign;
   }
@@ -283,11 +294,71 @@ export class MemoryStore implements DataStore {
   async createCode(input: Omit<CouponCode, "id" | "createdAt" | "code">): Promise<CouponCode> {
     const existing = await this.getCodeForInfluencerCampaign(input.influencerId, input.campaignId);
     if (existing) return existing;
-    let code = generateCode();
-    while (await this.getCodeByCode(code)) code = generateCode();
+
+    // A pool campaign hands out a code the shop already knows. Running dry is
+    // a refusal, not a silent fall back to inventing one — an invented code
+    // would fail at the buyer's checkout and the influencer would wear it.
+    const campaign = this.campaigns.get(input.campaignId);
+    let code: string;
+    if (campaign?.codeSource === "pool") {
+      const claimed = await this.claimPoolCode(input.campaignId, input.influencerId);
+      if (!claimed) throw new PoolEmptyError();
+      code = claimed;
+    } else {
+      code = generateCode();
+      while (await this.getCodeByCode(code)) code = generateCode();
+    }
+
     const record: CouponCode = { ...input, code, id: randomUUID(), createdAt: this.now() };
     this.codes.set(record.id, record);
     return record;
+  }
+
+  private readonly pool = new Map<string, { campaignId: string; code: string; claimedBy?: string; at: number }>();
+
+  async addPoolCodes(campaignId: string, codes: string[]): Promise<number> {
+    let added = 0;
+    for (const raw of codes) {
+      const code = normalizeCode(raw);
+      if (!code) continue;
+      const key = `${campaignId}:${code}`;
+      if (this.pool.has(key)) continue;
+      this.pool.set(key, { campaignId, code, at: this.pool.size });
+      added++;
+    }
+    return added;
+  }
+
+  async claimPoolCode(campaignId: string, influencerId: string): Promise<string | null> {
+    const next = [...this.pool.entries()]
+      .filter(([, v]) => v.campaignId === campaignId && !v.claimedBy)
+      .sort((a, b) => a[1].at - b[1].at)[0];
+    if (!next) return null;
+    this.pool.set(next[0], { ...next[1], claimedBy: influencerId });
+    return next[1].code;
+  }
+
+  async peekPoolCode(campaignId: string): Promise<string | null> {
+    const next = [...this.pool.values()]
+      .filter((v) => v.campaignId === campaignId && !v.claimedBy)
+      .sort((a, b) => a.at - b.at)[0];
+    return next?.code ?? null;
+  }
+
+  async poolStatus(campaignId: string): Promise<PoolStatus> {
+    const mine = [...this.pool.values()].filter((v) => v.campaignId === campaignId);
+    return { total: mine.length, available: mine.filter((v) => !v.claimedBy).length };
+  }
+
+  async poolStatusForCampaigns(campaignIds: string[]): Promise<Map<string, PoolStatus>> {
+    const out = new Map<string, PoolStatus>();
+    for (const id of campaignIds) out.set(id, await this.poolStatus(id));
+    return out;
+  }
+
+  async setCampaignVerified(campaignId: string, at: string | null): Promise<void> {
+    const c = this.campaigns.get(campaignId);
+    if (c) this.campaigns.set(campaignId, { ...c, verifiedAt: at ?? undefined });
   }
 
   async getCodeByCode(code: string): Promise<CouponCode | null> {

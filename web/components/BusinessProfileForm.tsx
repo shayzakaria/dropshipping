@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { updateBusinessProfile, type FormState } from "@/app/actions";
 import { btnPrimary, inputCls } from "./ui";
 import { LogoField } from "./LogoField";
@@ -16,19 +16,32 @@ export function BusinessProfileForm({ business }: { business: Business }) {
     updateBusinessProfile,
     {},
   );
+  // Controlled: React clears an uncontrolled form when its action resolves, so
+  // a rejected save would quietly throw away the description just written and
+  // put the old one back.
+  const [name, setName] = useState(business.name);
+  const [description, setDescription] = useState(business.description ?? "");
+  const [storeUrl, setStoreUrl] = useState(business.storeUrl ?? "");
 
   return (
     <form action={formAction} className="space-y-3">
       <label className="block text-sm">
         <span className="font-medium">שם העסק</span>
-        <input name="name" defaultValue={business.name} className={`${inputCls} mt-1`} required />
+        <input
+          name="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className={`${inputCls} mt-1`}
+          required
+        />
       </label>
 
       <label className="block text-sm">
         <span className="font-medium">שתי שורות על העסק</span>
         <textarea
           name="description"
-          defaultValue={business.description ?? ""}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
           maxLength={300}
           rows={3}
           placeholder="מה אתם מוכרים ולמי. זה מה שיופיע בקטלוג."
@@ -44,7 +57,8 @@ export function BusinessProfileForm({ business }: { business: Business }) {
         <input
           name="storeUrl"
           type="url"
-          defaultValue={business.storeUrl ?? ""}
+          value={storeUrl}
+          onChange={(e) => setStoreUrl(e.target.value)}
           placeholder="https://my-shop.co.il"
           className={`${inputCls} mt-1`}
           dir="ltr"

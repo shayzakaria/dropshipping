@@ -11,6 +11,7 @@ async function world() {
     businessId: business.id, title: "ק", buyerDiscountPct: 10, influencerPct: 7, platformPct: 3,
     newCustomersOnly: false, status: "active",
   });
+  await store.addPoolCodes(campaign.id, ["OP-1", "OP-2", "OP-3"]);
   const code = await store.createCode({ campaignId: campaign.id, influencerId: inf.id, status: "active" });
   return { store, owner, inf, business, campaign, code };
 }

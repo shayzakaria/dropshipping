@@ -63,6 +63,7 @@ const FOOTER_LINKS = [
   { href: "/legal/accessibility", label: "הצהרת נגישות" },
   { href: "/legal/terms", label: "תנאי שימוש" },
   { href: "/legal/influencer", label: "הסכם משפיען" },
+  { href: "/legal/money", label: "מסלול הכסף" },
   { href: "/legal/privacy", label: "פרטיות" },
 ];
 

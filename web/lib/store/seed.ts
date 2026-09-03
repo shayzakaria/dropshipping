@@ -52,9 +52,19 @@ export async function seed(store: MemoryStore): Promise<void> {
     platformPct: 3,
     newCustomersOnly: true,
     status: "active",
+    codeSource: "pool",
   });
 
-  await store.createCampaign({
+  // Codes Dana created in her own shop. This is what makes an influencer's
+  // code work at her checkout — the platform deals them out, it does not
+  // invent them. Verified because she tried one before publishing.
+  await store.addPoolCodes(
+    fall.id,
+    Array.from({ length: 40 }, (_, i) => `DANA-${String(i + 1).padStart(2, "0")}`),
+  );
+  await store.setCampaignVerified(fall.id, new Date().toISOString());
+
+  const accessories = await store.createCampaign({
     businessId: business.id,
     title: "מבצע אקססוריז",
     description: "12% הנחה על תיקים וצעיפים — פתוח גם ללקוחות חוזרים",
@@ -64,7 +74,13 @@ export async function seed(store: MemoryStore): Promise<void> {
     newCustomersOnly: false,
     maxRedemptionsPerMonth: 200,
     status: "active",
+    codeSource: "pool",
   });
+  await store.addPoolCodes(
+    accessories.id,
+    Array.from({ length: 25 }, (_, i) => `DANA-ACC-${String(i + 1).padStart(2, "0")}`),
+  );
+  await store.setCampaignVerified(accessories.id, new Date().toISOString());
 
   const noaCode = await store.createCode({
     campaignId: fall.id,

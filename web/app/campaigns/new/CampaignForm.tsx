@@ -5,6 +5,7 @@ import { createCampaign, type FormState } from "../../actions";
 import { btnPrimary, inputCls } from "@/components/ui";
 import { computeSplit } from "@/lib/domain/logic";
 import { formatILS as nis } from "@/lib/format";
+import { CodeSourceField } from "@/components/CodeSourceField";
 
 const EXAMPLE_ORDER = 300;
 
@@ -14,6 +15,20 @@ export function CampaignForm() {
   const [influencerPct, setInfluencerPct] = useState(7);
   const [platformPct] = useState(3);
   const [scope, setScope] = useState<"store" | "product">("store");
+  /*
+   * Every field is controlled, including the plain text ones.
+   *
+   * React resets an uncontrolled form after a form action resolves — which is
+   * right after a successful submit and badly wrong after a rejected one. A
+   * business that filled this whole form and got one validation error would
+   * find every field blank, including the fields that were fine.
+   */
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [newCustomersOnly, setNewCustomersOnly] = useState(true);
+  const [maxPerMonth, setMaxPerMonth] = useState("");
+  const [productName, setProductName] = useState("");
+  const [productUrl, setProductUrl] = useState("");
 
   const preview = useMemo(() => {
     try {
@@ -26,9 +41,18 @@ export function CampaignForm() {
 
   return (
     <form action={formAction} className="space-y-4">
-      <input name="title" placeholder="שם הקמפיין (למשל: השקת קולקציית חורף)" className={inputCls} required />
+      <input
+        name="title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="שם הקמפיין (למשל: השקת קולקציית חורף)"
+        className={inputCls}
+        required
+      />
       <textarea
         name="description"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
         placeholder="תיאור קצר שמשפיענים יראו (אופציונלי)"
         className={`${inputCls} min-h-20`}
       />
@@ -58,8 +82,23 @@ export function CampaignForm() {
         </div>
         {scope === "product" ? (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <input name="productName" placeholder="שם המוצר" className={inputCls} required />
-            <input name="productUrl" type="url" placeholder="קישור למוצר (אופציונלי)" className={inputCls} dir="ltr" />
+            <input
+              name="productName"
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+              placeholder="שם המוצר"
+              className={inputCls}
+              required
+            />
+            <input
+              name="productUrl"
+              type="url"
+              value={productUrl}
+              onChange={(e) => setProductUrl(e.target.value)}
+              placeholder="קישור למוצר (אופציונלי)"
+              className={inputCls}
+              dir="ltr"
+            />
           </div>
         ) : null}
       </fieldset>
@@ -144,11 +183,14 @@ export function CampaignForm() {
         </p>
       </div>
 
+      <CodeSourceField />
+
       <label className="flex cursor-pointer items-start gap-2.5 py-1 text-sm">
         <input
           type="checkbox"
           name="newCustomersOnly"
-          defaultChecked
+          checked={newCustomersOnly}
+          onChange={(e) => setNewCustomersOnly(e.target.checked)}
           className="mt-0.5 h-6 w-6 flex-none accent-deal-deep"
         />
         הקופון תקף ללקוחות חדשים בלבד (מומלץ — מונע הנחות ללקוחות שהיו קונים ממילא)
@@ -156,7 +198,15 @@ export function CampaignForm() {
 
       <label className="block text-sm">
         <span className="font-medium">תקרת מימושים חודשית (אופציונלי — רשת ביטחון לתקציב)</span>
-        <input type="number" name="maxRedemptionsPerMonth" min={1} placeholder="ללא תקרה" className={`${inputCls} tabular mt-1 font-mono`} />
+        <input
+          type="number"
+          name="maxRedemptionsPerMonth"
+          value={maxPerMonth}
+          onChange={(e) => setMaxPerMonth(e.target.value)}
+          min={1}
+          placeholder="ללא תקרה"
+          className={`${inputCls} tabular mt-1 font-mono`}
+        />
       </label>
 
       {state.error ? <p className="text-sm font-medium text-err">{state.error}</p> : null}

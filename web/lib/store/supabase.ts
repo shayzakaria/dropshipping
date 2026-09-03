@@ -6,17 +6,19 @@ import type {
   CancellationReason,
   Campaign,
   CampaignScope,
+  CodeSource,
   CampaignStatus,
   CouponCode,
   PayoutDetails,
   PayoutRequest,
   PayoutStatus,
+  PoolStatus,
   Redemption,
   RedemptionStatus,
   TierName,
   User,
 } from "../domain/types";
-import { generateCode, normalizeCode } from "../domain/logic";
+import { generateCode, normalizeCode, PoolEmptyError } from "../domain/logic";
 import { computeAdminSnapshot } from "../domain/admin";
 import type { AdminSnapshot, DataStore, LogoFile, SupportView } from "./store";
 
@@ -67,6 +69,8 @@ type CampaignRow = {
   product_name: string | null;
   product_url: string | null;
   status: CampaignStatus;
+  code_source: CodeSource | null;
+  verified_at: string | null;
   created_at: string;
 };
 type CodeRow = {
@@ -139,6 +143,8 @@ const toCampaign = (r: CampaignRow): Campaign => ({
   productName: r.product_name ?? undefined,
   productUrl: r.product_url ?? undefined,
   status: r.status,
+  codeSource: r.code_source ?? "generated",
+  verifiedAt: r.verified_at ?? undefined,
   createdAt: r.created_at,
 });
 
@@ -696,7 +702,10 @@ export class SupabaseStore implements DataStore {
   // Campaigns ---------------------------------------------------------------
 
   async createCampaign(
-    input: Omit<Campaign, "id" | "createdAt" | "scope"> & { scope?: CampaignScope },
+    input: Omit<Campaign, "id" | "createdAt" | "scope" | "codeSource"> & {
+      scope?: CampaignScope;
+      codeSource?: CodeSource;
+    },
   ): Promise<Campaign> {
     const { data, error } = await this.db
       .from("campaigns")
@@ -713,6 +722,7 @@ export class SupabaseStore implements DataStore {
         product_name: input.productName ?? null,
         product_url: input.productUrl ?? null,
         status: input.status,
+        code_source: input.codeSource ?? "pool",
       })
       .select()
       .single<CampaignRow>();
@@ -766,6 +776,29 @@ export class SupabaseStore implements DataStore {
     const existing = await this.getCodeForInfluencerCampaign(input.influencerId, input.campaignId);
     if (existing) return existing;
 
+    // A pool campaign deals a code the shop already recognises; running dry
+    // refuses the join rather than inventing one that fails at checkout.
+    const campaign = await this.getCampaign(input.campaignId);
+    if (campaign?.codeSource === "pool") {
+      const claimed = await this.claimPoolCode(input.campaignId, input.influencerId);
+      if (!claimed) throw new PoolEmptyError();
+      const { data, error } = await this.db
+        .from("coupon_codes")
+        .insert({
+          campaign_id: input.campaignId,
+          influencer_id: input.influencerId,
+          code: claimed,
+          status: input.status,
+        })
+        .select()
+        .single<CodeRow>();
+      if (!error) return toCode(data!);
+      if (error.code !== "23505") throw new Error(error.message);
+      const raced = await this.getCodeForInfluencerCampaign(input.influencerId, input.campaignId);
+      if (raced) return raced;
+      throw new Error(error.message);
+    }
+
     // Retry on the unique index rather than pre-checking: the DB is the authority
     for (let attempt = 0; attempt < 6; attempt++) {
       const { data, error } = await this.db
@@ -785,6 +818,74 @@ export class SupabaseStore implements DataStore {
       if (raced) return raced;
     }
     throw new Error("CODE_GENERATION_FAILED");
+  }
+
+  async addPoolCodes(campaignId: string, codes: string[]): Promise<number> {
+    const rows = [...new Set(codes.map(normalizeCode).filter(Boolean))].map((code) => ({
+      campaign_id: campaignId,
+      code,
+    }));
+    if (!rows.length) return 0;
+    // A second paste usually overlaps the first, so a repeat is skipped rather
+    // than failing the whole batch.
+    const { data, error } = await this.db
+      .from("campaign_code_pool")
+      .upsert(rows, { onConflict: "campaign_id,code", ignoreDuplicates: true })
+      .select("id");
+    if (error) throw new Error(error.message);
+    return data?.length ?? 0;
+  }
+
+  async claimPoolCode(campaignId: string, influencerId: string): Promise<string | null> {
+    // A function, not a select-then-update: two influencers joining at the
+    // same instant must never be handed the same code, and `for update skip
+    // locked` inside claim_pool_code is what guarantees it.
+    const { data, error } = await this.db.rpc("claim_pool_code", {
+      p_campaign_id: campaignId,
+      p_influencer_id: influencerId,
+    });
+    if (error) throw new Error(error.message);
+    return (data as string | null) ?? null;
+  }
+
+  async peekPoolCode(campaignId: string): Promise<string | null> {
+    const row = await this.one<{ code: string }>(
+      this.db
+        .from("campaign_code_pool")
+        .select("code")
+        .eq("campaign_id", campaignId)
+        .is("claimed_by", null)
+        .order("created_at")
+        .limit(1)
+        .maybeSingle<{ code: string }>(),
+    );
+    return row?.code ?? null;
+  }
+
+  async poolStatus(campaignId: string): Promise<PoolStatus> {
+    return (await this.poolStatusForCampaigns([campaignId])).get(campaignId) ?? { total: 0, available: 0 };
+  }
+
+  async poolStatusForCampaigns(campaignIds: string[]): Promise<Map<string, PoolStatus>> {
+    const out = new Map<string, PoolStatus>();
+    if (!campaignIds.length) return out;
+    for (const id of campaignIds) out.set(id, { total: 0, available: 0 });
+
+    const rows = await this.many<{ campaign_id: string; claimed_by: string | null }>(
+      this.db.from("campaign_code_pool").select("campaign_id, claimed_by").in("campaign_id", campaignIds),
+    );
+    for (const r of rows) {
+      const cur = out.get(r.campaign_id) ?? { total: 0, available: 0 };
+      cur.total++;
+      if (!r.claimed_by) cur.available++;
+      out.set(r.campaign_id, cur);
+    }
+    return out;
+  }
+
+  async setCampaignVerified(campaignId: string, at: string | null): Promise<void> {
+    const { error } = await this.db.from("campaigns").update({ verified_at: at }).eq("id", campaignId);
+    if (error) throw new Error(error.message);
   }
 
   async getCodeByCode(code: string): Promise<CouponCode | null> {

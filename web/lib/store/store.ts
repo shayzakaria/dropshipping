@@ -10,6 +10,8 @@ import type {
   PayoutDetails,
   PayoutRequest,
   PayoutStatus,
+  CodeSource,
+  PoolStatus,
   Redemption,
   RedemptionStatus,
   User,
@@ -103,7 +105,10 @@ export interface DataStore {
   // Campaigns
   /** `scope` defaults to the whole store when not given. */
   createCampaign(
-    input: Omit<Campaign, "id" | "createdAt" | "scope"> & { scope?: CampaignScope },
+    input: Omit<Campaign, "id" | "createdAt" | "scope" | "codeSource"> & {
+      scope?: CampaignScope;
+      codeSource?: CodeSource;
+    },
   ): Promise<Campaign>;
   getCampaign(id: string): Promise<Campaign | null>;
   listActiveCampaigns(): Promise<Campaign[]>;
@@ -113,6 +118,22 @@ export interface DataStore {
 
   // Coupon codes
   createCode(input: Omit<CouponCode, "id" | "createdAt" | "code">): Promise<CouponCode>;
+
+  // ---- Code pool
+  /**
+   * Adds codes the business created in its own shop. Returns how many were
+   * actually stored: duplicates within the campaign are skipped rather than
+   * rejected, because a business pasting a second batch will usually overlap
+   * with the first and that is not an error worth stopping them for.
+   */
+  addPoolCodes(campaignId: string, codes: string[]): Promise<number>;
+  /** Takes one unclaimed code for this influencer, or null if the pool is dry. */
+  claimPoolCode(campaignId: string, influencerId: string): Promise<string | null>;
+  /** One unclaimed code, without taking it — for the business's own test. */
+  peekPoolCode(campaignId: string): Promise<string | null>;
+  poolStatus(campaignId: string): Promise<PoolStatus>;
+  poolStatusForCampaigns(campaignIds: string[]): Promise<Map<string, PoolStatus>>;
+  setCampaignVerified(campaignId: string, at: string | null): Promise<void>;
   getCodeByCode(code: string): Promise<CouponCode | null>;
   getCodeForInfluencerCampaign(influencerId: string, campaignId: string): Promise<CouponCode | null>;
   listCodesByInfluencer(influencerId: string): Promise<CouponCode[]>;

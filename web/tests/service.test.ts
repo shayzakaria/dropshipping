@@ -20,6 +20,14 @@ async function world(overrides: Partial<Parameters<MemoryStore["createCampaign"]
     status: "active",
     ...overrides,
   });
+  // Campaigns deal codes the shop created, so a test campaign needs a pool
+  // before anyone can join it — same as a real one.
+  if (campaign.codeSource === "pool") {
+    await store.addPoolCodes(
+      campaign.id,
+      Array.from({ length: 10 }, (_, i) => `TEST-${i + 1}`),
+    );
+  }
   const code = await store.createCode({ campaignId: campaign.id, influencerId: influencer.id, status: "active" });
   return { store, owner, influencer, business, campaign, code };
 }

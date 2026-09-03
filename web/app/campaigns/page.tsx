@@ -12,7 +12,10 @@ export default async function CampaignsPage() {
   const store = await getReadyStore();
   const user = await getCurrentUser();
   const demoMode = isDemoMode();
-  const campaigns = await store.listActiveCampaigns();
+  // Only campaigns whose codes have been tried at the shop's own checkout are
+  // shown. A code that fails at checkout costs the influencer their standing
+  // with their audience, so an unverified campaign is not offered at all.
+  const campaigns = (await store.listActiveCampaigns()).filter((c) => c.verifiedAt);
 
   // Everything below depends only on the campaign list, so it goes out in one
   // wave of three queries rather than two-per-campaign in sequence. On a page
@@ -23,6 +26,7 @@ export default async function CampaignsPage() {
     store.listCodesByCampaignIds(campaignIds),
     user ? store.countInfluencerRedemptionsInMonth(user.id, new Date()) : Promise.resolve(0),
   ]);
+  const pools = await store.poolStatusForCampaigns(campaignIds);
 
   const businessById = new Map(businesses.map((b) => [b.id, b]));
   const codesByCampaign = new Map<string, typeof codes>();
@@ -108,9 +112,15 @@ export default async function CampaignsPage() {
                       <CopyButton text={myCode.code} />
                     </div>
                   ) : user?.role === "influencer" ? (
-                    <form action={joinCampaign.bind(null, c.id)}>
-                      <button className={btnPrimary}>הצטרפות — קבלת קוד אישי</button>
-                    </form>
+                    c.codeSource === "pool" && (pools.get(c.id)?.available ?? 0) === 0 ? (
+                      <p className="rounded-lg border border-ink/25 bg-paper px-3 py-2 text-xs font-medium text-mut">
+                        אזלו הקודים בקמפיין הזה. ביקשנו מהעסק להוסיף עוד — כדאי לחזור מאוחר יותר.
+                      </p>
+                    ) : (
+                      <form action={joinCampaign.bind(null, c.id)}>
+                        <button className={btnPrimary}>הצטרפות — קבלת קוד אישי</button>
+                      </form>
+                    )
                   ) : (
                     <Link
                       href="/login"

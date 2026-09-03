@@ -14,7 +14,7 @@ export default async function LoginPage() {
   const store = await getReadyStore();
   const demo = isDemoMode();
   const withPassword = isAuthConfigured();
-  const withGoogle = isGoogleAuthEnabled();
+  const withGoogle = await isGoogleAuthEnabled();
   // Never list real accounts: the list is what makes passwordless sign-in work
   const users = demo ? await store.listUsers() : [];
 

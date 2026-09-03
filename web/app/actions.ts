@@ -7,15 +7,17 @@ import { clearSession, getCurrentUser, setSession } from "@/lib/auth";
 import {
   DomainError,
   PLATFORM_PCT,
+  PoolEmptyError,
   commissionState,
   parseCancellationReason,
   validateCampaignSplit,
 } from "@/lib/domain/logic";
 import { cancelRedemption, redeemCode } from "@/lib/domain/service";
 import { walletStats } from "@/lib/domain/stats";
+import { parseCodeListClient } from "@/lib/domain/codes";
 import { getReadyStore, isDemoMode } from "@/lib/store";
 import { authErrorMessage, getAuthClient, isAuthConfigured } from "@/lib/supabase-auth";
-import type { CampaignScope, CampaignStatus, Role } from "@/lib/domain/types";
+import type { CampaignScope, CampaignStatus, CodeSource, Role } from "@/lib/domain/types";
 import type { DataStore } from "@/lib/store/store";
 import { MAX_LOGO_BYTES, sniffLogo } from "@/lib/domain/images";
 
@@ -505,7 +507,16 @@ export async function createCampaign(_prev: FormState, formData: FormData): Prom
     throw e;
   }
 
-  await store.createCampaign({
+  const codeSource: CodeSource = formData.get("codeSource") === "generated" ? "generated" : "pool";
+  const pastedCodes = parseCodeListClient(String(formData.get("poolCodes") ?? ""));
+  if (codeSource === "pool" && pastedCodes.length === 0) {
+    return {
+      error:
+        "צריך להדביק לפחות קוד אחד שיצרת בחנות שלך. בלי זה הקוד שהמשפיען יפרסם לא יעבוד בקופה.",
+    };
+  }
+
+  const campaign = await store.createCampaign({
     businessId: business.id,
     title,
     description: description || undefined,
@@ -518,9 +529,59 @@ export async function createCampaign(_prev: FormState, formData: FormData): Prom
     productName: scope === "product" ? productName : undefined,
     productUrl: scope === "product" && productUrl ? productUrl : undefined,
     status: "active",
+    codeSource,
   });
+  if (pastedCodes.length) await store.addPoolCodes(campaign.id, pastedCodes);
   revalidatePath("/dashboard");
   redirect("/dashboard");
+}
+
+/** Adds more codes to a campaign that is running low. */
+export async function addPoolCodes(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "business") redirect("/login");
+  const store = await getReadyStore();
+  const business = await store.getBusinessByOwner(user.id);
+  const campaignId = String(formData.get("campaignId") ?? "");
+  const campaign = await store.getCampaign(campaignId);
+  if (!business || !campaign || campaign.businessId !== business.id) {
+    refuse("addPoolCodes", { campaignId });
+    return { error: "לא נמצא קמפיין" };
+  }
+
+  const codes = parseCodeListClient(String(formData.get("poolCodes") ?? ""));
+  if (!codes.length) return { error: "לא זוהו קודים בטקסט שהודבק" };
+  const added = await store.addPoolCodes(campaignId, codes);
+  revalidatePath("/dashboard");
+  return {
+    ok: true,
+    notice:
+      added === codes.length
+        ? `נוספו ${added} קודים.`
+        : `נוספו ${added} קודים. ${codes.length - added} כבר היו במאגר ולא נוספו שוב.`,
+  };
+}
+
+/**
+ * The business confirms a code actually worked at its own checkout.
+ *
+ * Until this happens the campaign is not offered to influencers. Publishing an
+ * untested code costs the influencer their credibility in front of their own
+ * audience, which is not ours to spend.
+ */
+export async function setCampaignVerified(campaignId: string, formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "business") redirect("/login");
+  const store = await getReadyStore();
+  const business = await store.getBusinessByOwner(user.id);
+  const campaign = await store.getCampaign(campaignId);
+  if (!business || !campaign || campaign.businessId !== business.id) {
+    return refuse("setCampaignVerified", { campaignId });
+  }
+  const verified = formData.get("verified") === "yes";
+  await store.setCampaignVerified(campaignId, verified ? new Date().toISOString() : null);
+  revalidatePath("/dashboard");
+  revalidatePath("/campaigns");
 }
 
 export async function joinCampaign(campaignId: string): Promise<void> {
@@ -532,7 +593,23 @@ export async function joinCampaign(campaignId: string): Promise<void> {
   if (!campaign || campaign.status !== "active") {
     return refuse("joinCampaign", { campaignId, found: Boolean(campaign), status: campaign?.status });
   }
-  await store.createCode({ campaignId, influencerId: user.id, status: "active" });
+  // A campaign whose codes were never tried at a real checkout is not offered
+  // and not joinable, however someone arrived at this action.
+  if (!campaign.verifiedAt) {
+    return refuse("joinCampaign", { campaignId, reason: "unverified" });
+  }
+
+  try {
+    await store.createCode({ campaignId, influencerId: user.id, status: "active" });
+  } catch (e) {
+    // The pool ran dry between the page rendering and the click. There is
+    // nothing to hand out, and inventing a code would hand over one that
+    // fails at checkout, so the join simply does not happen.
+    if (e instanceof PoolEmptyError) {
+      return refuse("joinCampaign", { campaignId, reason: "pool_empty" });
+    }
+    throw e;
+  }
   revalidatePath("/campaigns");
   revalidatePath("/dashboard");
 }

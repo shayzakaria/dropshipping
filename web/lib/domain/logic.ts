@@ -19,6 +19,20 @@ export class DomainError extends Error {
 }
 
 /**
+ * No unclaimed codes left in a pool campaign.
+ *
+ * Deliberately not a fallback to a generated code: an invented code is not
+ * valid at the shop's checkout, so falling back would hand the influencer
+ * something that fails in front of their audience. Better to refuse the join
+ * and tell the business to top the pool up.
+ */
+export class PoolEmptyError extends DomainError {
+  constructor() {
+    super("pool_empty", "אזלו הקודים של הקמפיין הזה");
+  }
+}
+
+/**
  * Influencer tiers. Bonuses are funded from the PLATFORM share, never from the
  * business — the business's total cost per sale is constant by design.
  * Ordered from highest to lowest so the first match wins.

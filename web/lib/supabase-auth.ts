@@ -17,15 +17,46 @@ export function isAuthConfigured(): boolean {
 }
 
 /**
- * Whether to offer Google.
+ * Whether to offer Google — asked of Supabase, not of an environment variable.
  *
- * Behind a flag rather than always on: enabling the provider is a step taken
- * in the Supabase dashboard, and a Google button that appears before that is
- * done takes people to an error page. One environment variable is a smaller
- * cost than a broken front door.
+ * The provider is turned on in the Supabase dashboard, and Supabase already
+ * publishes which providers are live on its own settings endpoint. Reading it
+ * means the button appears the moment the provider is enabled and disappears
+ * the moment it is turned off, with nothing to remember to set somewhere else.
+ * A flag would have been one more thing that can disagree with reality.
+ *
+ * GOOGLE_AUTH_ENABLED still forces it on, for the case where the settings
+ * endpoint cannot be reached but the provider is known to be configured.
  */
-export function isGoogleAuthEnabled(): boolean {
-  return isAuthConfigured() && process.env.GOOGLE_AUTH_ENABLED === "true";
+let googleCache: { at: number; on: boolean } | undefined;
+const SETTINGS_TTL_MS = 60_000;
+
+export async function isGoogleAuthEnabled(): Promise<boolean> {
+  if (!isAuthConfigured()) return false;
+  if (process.env.GOOGLE_AUTH_ENABLED === "true") return true;
+
+  const now = Date.now();
+  if (googleCache && now - googleCache.at < SETTINGS_TTL_MS) return googleCache.on;
+
+  try {
+    const res = await fetch(`${AUTH_URL}/auth/v1/settings`, {
+      headers: { apikey: AUTH_KEY! },
+      // Cached for a minute in-process; flipping the provider shows up within it.
+      cache: "no-store",
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) throw new Error(`settings ${res.status}`);
+    const body = (await res.json()) as { external?: Record<string, boolean> };
+    const on = body.external?.google === true;
+    googleCache = { at: now, on };
+    return on;
+  } catch (e) {
+    // A login page that renders is worth more than an accurate button, so a
+    // failure here hides Google rather than breaking the page.
+    console.warn("[BOOST] could not read auth settings", e instanceof Error ? e.message : e);
+    googleCache = { at: now, on: false };
+    return false;
+  }
 }
 
 export async function getAuthClient() {

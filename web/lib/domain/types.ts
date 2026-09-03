@@ -86,7 +86,29 @@ export interface Campaign {
   productName?: string;
   productUrl?: string;
   status: CampaignStatus;
+  /** Where this campaign's codes come from — see CodeSource */
+  codeSource: CodeSource;
+  /** Set once a real code has been tried at a real checkout */
+  verifiedAt?: string;
   createdAt: string;
+}
+
+/**
+ * Whether the shop already knows the codes we hand out.
+ *
+ * "pool" — the business bulk-created codes in its own shop and pasted them
+ * here; we deal one to each influencer. Works with any shop on earth, needs
+ * no integration, and the code is guaranteed valid at checkout because the
+ * shop is the one that made it.
+ *
+ * "generated" — we invent the code. Only honest when the shop validates codes
+ * by asking us, which means a real integration at their checkout.
+ */
+export type CodeSource = "pool" | "generated";
+
+export interface PoolStatus {
+  total: number;
+  available: number;
 }
 
 export interface CouponCode {

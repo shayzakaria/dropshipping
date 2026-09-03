@@ -24,6 +24,7 @@ import { formatDate, formatILS } from "@/lib/format";
 import { getReadyStore } from "@/lib/store";
 import type { DataStore } from "@/lib/store/store";
 import { cancelSale, setCampaignState } from "../actions";
+import { CampaignCodesPanel } from "@/components/CampaignCodesPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -50,10 +51,19 @@ export async function BusinessDashboard({ user, store }: { user: User; store: Da
     store.listCampaignsByBusiness(business.id),
     store.listRedemptionsByBusiness(business.id),
   ]);
-  const [codes, influencerNames] = await Promise.all([
+  const [codes, influencerNames, pools] = await Promise.all([
     store.listCodesByCampaignIds(campaigns.map((c) => c.id)),
     namesById(store, redemptions.map((r) => r.influencerId)),
+    store.poolStatusForCampaigns(campaigns.map((c) => c.id)),
   ]);
+  // One unclaimed code per campaign, so the business has something concrete to
+  // try at its own checkout when confirming the campaign works.
+  const samples = await Promise.all(
+    campaigns.map(async (c) =>
+      c.codeSource === "pool" && !c.verifiedAt ? [c.id, await store.peekPoolCode(c.id)] as const : [c.id, null] as const,
+    ),
+  );
+  const sampleByCampaign = new Map(samples);
   const stats = businessStats(redemptions, new Date());
   const codesByCampaign = new Map<string, CouponCode[]>();
   for (const code of codes) {
@@ -186,6 +196,16 @@ export async function BusinessDashboard({ user, store }: { user: User; store: Da
                 שנצברו בו ישולמו כרגיל.
               </p>
             ) : null}
+            {c.status === "closed" ? null : (
+              <CampaignCodesPanel
+                campaignId={c.id}
+                codeSource={c.codeSource}
+                verified={Boolean(c.verifiedAt)}
+                total={pools.get(c.id)?.total ?? 0}
+                available={pools.get(c.id)?.available ?? 0}
+                sampleCode={sampleByCampaign.get(c.id) ?? undefined}
+              />
+            )}
             {c.status === "closed" ? null : (
               <div className="mt-3 flex flex-wrap gap-2">
                 <form action={setCampaignState.bind(null, c.id, c.status === "active" ? "paused" : "active")}>
