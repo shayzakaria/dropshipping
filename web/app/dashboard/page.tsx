@@ -37,7 +37,7 @@ export default async function DashboardPage() {
   );
 }
 
-async function BusinessDashboard({ user, store }: { user: User; store: DataStore }) {
+export async function BusinessDashboard({ user, store }: { user: User; store: DataStore }) {
   const business = await store.getBusinessByOwner(user.id);
   if (!business) {
     return <p className="text-mut">לא נמצא עסק למשתמש הזה.</p>;
@@ -258,7 +258,7 @@ async function BusinessDashboard({ user, store }: { user: User; store: DataStore
   );
 }
 
-async function InfluencerDashboard({ user, store }: { user: User; store: DataStore }) {
+export async function InfluencerDashboard({ user, store }: { user: User; store: DataStore }) {
   const [codes, redemptions, follows] = await Promise.all([
     store.listCodesByInfluencer(user.id),
     store.listRedemptionsByInfluencer(user.id),
