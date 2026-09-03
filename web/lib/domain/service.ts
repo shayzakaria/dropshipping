@@ -22,6 +22,15 @@ export interface RedeemInput {
   /** Required when source === "api": must match the business's apiSecret */
   apiSecret?: string;
   /**
+   * Who is calling, when they are not authenticated by API key — a signed-in
+   * business reporting a sale by hand or testing its own code.
+   *
+   * Required for every source except "api", and checked against the campaign's
+   * owner below. Without it a business could record a sale against another
+   * business's code and invent a commission debt on their books.
+   */
+  actingBusinessId?: string;
+  /**
    * The store's own order id. When supplied, replaying the same order returns
    * the redemption already on file instead of paying a second commission —
    * checkout webhooks retry, and a retry must not cost the business twice.
@@ -47,9 +56,14 @@ export async function redeemCode(store: DataStore, input: RedeemInput): Promise<
       ? input.apiSecret
         ? await store.getBusinessByApiSecret(input.apiSecret)
         : null
-      : null;
-  if (input.source === "api" && !callerBusiness) {
-    throw new DomainError("BAD_SECRET", "מפתח ה-API אינו מוכר");
+      : input.actingBusinessId
+        ? await store.getBusiness(input.actingBusinessId)
+        : null;
+  if (!callerBusiness) {
+    throw new DomainError(
+      input.source === "api" ? "BAD_SECRET" : "NO_ACTING_BUSINESS",
+      input.source === "api" ? "מפתח ה-API אינו מוכר" : "צריך להיות מחובר כעסק",
+    );
   }
 
   const code = await store.getCodeByCode(normalizeCode(input.code));
@@ -67,9 +81,11 @@ export async function redeemCode(store: DataStore, input: RedeemInput): Promise<
     throw new DomainError("BUSINESS_NOT_FOUND", "העסק של הקמפיין לא נמצא");
   }
 
-  // A valid key for another business must not confirm that this code exists,
-  // so it gets the same answer as a code that is simply not there.
-  if (callerBusiness && callerBusiness.id !== business.id) {
+  // A caller acting for another business must not confirm that this code
+  // exists, so it gets the same answer as a code that is simply not there.
+  // Enforced here rather than in each caller: a guard that every new entry
+  // point has to remember is a guard that a new entry point will forget.
+  if (callerBusiness.id !== business.id) {
     throw new DomainError("CODE_NOT_FOUND", "קוד הקופון לא קיים או לא פעיל");
   }
 

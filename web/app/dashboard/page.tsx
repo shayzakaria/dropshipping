@@ -25,6 +25,7 @@ import { getReadyStore } from "@/lib/store";
 import type { DataStore } from "@/lib/store/store";
 import { cancelSale, setCampaignState } from "../actions";
 import { CampaignCodesPanel } from "@/components/CampaignCodesPanel";
+import { ManualSaleForm } from "@/components/ManualSaleForm";
 
 export const dynamic = "force-dynamic";
 
@@ -222,6 +223,11 @@ export async function BusinessDashboard({ user, store }: { user: User; store: Da
 
       <SectionTitle>מכירות אחרונות</SectionTitle>
       <RedemptionsTable redemptions={redemptions.slice(0, 15)} names={influencerNames} perspective="business" />
+
+      <SectionTitle>רישום מכירה בלי קופה מחוברת</SectionTitle>
+      <Card>
+        <ManualSaleForm />
+      </Card>
 
       <SectionTitle>חיבור לחנות שלך</SectionTitle>
       <Card>

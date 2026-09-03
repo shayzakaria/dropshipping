@@ -63,12 +63,13 @@ describe("redeemCode — happy path", () => {
     expect(r.orderAmount).toBe(100);
   });
 
-  it("does not require an api secret for the simulator source", async () => {
-    const { store, code } = await world();
+  it("takes the simulator without an api secret, but only from the owning business", async () => {
+    const { store, code, business } = await world();
     const r = await redeemCode(store, {
       code: code.code,
       orderAmount: 50,
       source: "simulator",
+      actingBusinessId: business.id,
       customerRef: "buyer@x.com",
     });
     expect(r.source).toBe("simulator");
@@ -77,40 +78,46 @@ describe("redeemCode — happy path", () => {
 
 describe("redeemCode — rejections", () => {
   it("rejects an unknown code", async () => {
-    const { store } = await world();
-    await expect(redeemCode(store, { code: "ZZZZ-ZZZZ", orderAmount: 100, source: "simulator" })).rejects.toMatchObject(
+    const { store, business } = await world();
+    await expect(redeemCode(store, { code: "ZZZZ-ZZZZ", orderAmount: 100, source: "simulator", actingBusinessId: business.id })).rejects.toMatchObject(
       { code: "CODE_NOT_FOUND" },
     );
   });
 
   it("rejects a wrong api secret with BAD_SECRET", async () => {
-    const { store, code } = await world();
+    const { store, business, code } = await world();
     await expect(
       redeemCode(store, { code: code.code, orderAmount: 100, source: "api", apiSecret: "wrong" }),
     ).rejects.toMatchObject({ code: "BAD_SECRET" });
   });
 
   it("rejects redemptions on a paused campaign", async () => {
-    const { store, campaign, code } = await world();
+    const { store, business, campaign, code } = await world();
     await store.setCampaignStatus(campaign.id, "paused");
-    await expect(redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" })).rejects.toMatchObject({
+    await expect(redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id })).rejects.toMatchObject({
       code: "CAMPAIGN_INACTIVE",
     });
   });
 
   it("rejects non-positive amounts", async () => {
-    const { store, code } = await world();
+    const { store, business, code } = await world();
     for (const bad of [0, -10, NaN]) {
-      await expect(redeemCode(store, { code: code.code, orderAmount: bad, source: "simulator" })).rejects.toMatchObject(
+      await expect(redeemCode(store, { code: code.code, orderAmount: bad, source: "simulator", actingBusinessId: business.id })).rejects.toMatchObject(
         { code: "INVALID_AMOUNT" },
       );
     }
   });
 
   it("blocks an influencer redeeming their own code (fraud guard)", async () => {
-    const { store, code } = await world();
+    const { store, business, code } = await world();
     await expect(
-      redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", customerRef: "INF@test.co" }),
+      redeemCode(store, {
+        code: code.code,
+        orderAmount: 100,
+        source: "simulator",
+        actingBusinessId: business.id,
+        customerRef: "INF@test.co",
+      }),
     ).rejects.toMatchObject({ code: "SELF_REDEMPTION" });
   });
 
@@ -143,10 +150,10 @@ describe("redeemCode — rejections", () => {
   });
 
   it("enforces the campaign's monthly redemption cap", async () => {
-    const { store, code } = await world({ newCustomersOnly: false, maxRedemptionsPerMonth: 2 });
-    await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
-    await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
-    await expect(redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" })).rejects.toMatchObject({
+    const { store, business, code } = await world({ newCustomersOnly: false, maxRedemptionsPerMonth: 2 });
+    await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id });
+    await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id });
+    await expect(redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id })).rejects.toMatchObject({
       code: "MONTHLY_CAP_REACHED",
     });
   });
@@ -154,14 +161,14 @@ describe("redeemCode — rejections", () => {
 
 describe("redeemCode — tier progression", () => {
   it("upgrades the influencer to SILVER after 10 monthly sales, funded by the platform", async () => {
-    const { store, code } = await world({ newCustomersOnly: false });
+    const { store, business, code } = await world({ newCustomersOnly: false });
     for (let i = 0; i < 10; i++) {
-      const r = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
+      const r = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id });
       expect(r.tier).toBe("BRONZE");
       expect(r.influencerCommission).toBe(7);
       expect(r.platformFee).toBe(3);
     }
-    const eleventh = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
+    const eleventh = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id });
     expect(eleventh.tier).toBe("SILVER");
     expect(eleventh.tierBonusPct).toBe(1);
     expect(eleventh.influencerCommission).toBe(8); // 7% + 1%
@@ -174,8 +181,8 @@ describe("redeemCode — tier progression", () => {
 describe("stats", () => {
   it("aggregates business and influencer monthly numbers", async () => {
     const { store, business, influencer, code } = await world({ newCustomersOnly: false });
-    await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
-    await redeemCode(store, { code: code.code, orderAmount: 200, source: "simulator" });
+    await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id });
+    await redeemCode(store, { code: code.code, orderAmount: 200, source: "simulator", actingBusinessId: business.id });
 
     const b = businessStats(await store.listRedemptionsByBusiness(business.id), new Date());
     expect(b.monthCount).toBe(2);
@@ -195,7 +202,7 @@ describe("stats", () => {
 
 describe("MemoryStore specifics", () => {
   it("returns the same code when an influencer joins a campaign twice", async () => {
-    const { store, campaign, influencer, code } = await world();
+    const { store, business, campaign, influencer, code } = await world();
     const again = await store.createCode({ campaignId: campaign.id, influencerId: influencer.id, status: "active" });
     expect(again.id).toBe(code.id);
   });
@@ -283,8 +290,8 @@ describe("redeemCode — idempotent orders", () => {
 
   it("still records every sale when the store sends no order id", async () => {
     const { store, business, code } = await world({ newCustomersOnly: false });
-    await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
-    await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
+    await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id });
+    await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id });
     expect(await store.listRedemptionsByBusiness(business.id)).toHaveLength(2);
   });
 
@@ -311,12 +318,13 @@ describe("redeemCode — idempotent orders", () => {
 
 describe("redeemCode — commission hold", () => {
   it("puts every new commission on hold for the return window", async () => {
-    const { store, code } = await world({ newCustomersOnly: false });
+    const { store, business, code } = await world({ newCustomersOnly: false });
     const now = new Date("2026-09-01T12:00:00Z");
     const r = await redeemCode(store, {
       code: code.code,
       orderAmount: 300,
       source: "simulator",
+      actingBusinessId: business.id,
       now,
     });
     expect(r.status).toBe("held");
@@ -324,8 +332,8 @@ describe("redeemCode — commission hold", () => {
   });
 
   it("lets a returned order be cancelled, voiding the commission", async () => {
-    const { store, influencer, code } = await world({ newCustomersOnly: false });
-    const r = await redeemCode(store, { code: code.code, orderAmount: 300, source: "simulator" });
+    const { store, business, influencer, code } = await world({ newCustomersOnly: false });
+    const r = await redeemCode(store, { code: code.code, orderAmount: 300, source: "simulator", actingBusinessId: business.id });
     await store.setRedemptionStatus(r.id, "cancelled");
     const after = await store.listRedemptionsByInfluencer(influencer.id);
     expect(after[0].status).toBe("cancelled");
@@ -335,7 +343,7 @@ describe("redeemCode — commission hold", () => {
 describe("cancelRedemption", () => {
   it("voids the commission on a returned order", async () => {
     const { store, business, influencer, code } = await world({ newCustomersOnly: false });
-    const sale = await redeemCode(store, { code: code.code, orderAmount: 300, source: "simulator" });
+    const sale = await redeemCode(store, { code: code.code, orderAmount: 300, source: "simulator", actingBusinessId: business.id });
 
     const cancelled = await cancelRedemption(store, {
       businessId: business.id,
@@ -366,7 +374,7 @@ describe("cancelRedemption", () => {
 
   it("is idempotent, because refund webhooks retry too", async () => {
     const { store, business, code } = await world({ newCustomersOnly: false });
-    const sale = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
+    const sale = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id });
     await cancelRedemption(store, { businessId: business.id, redemptionId: sale.id });
     await expect(
       cancelRedemption(store, { businessId: business.id, redemptionId: sale.id }),
@@ -375,7 +383,7 @@ describe("cancelRedemption", () => {
 
   it("refuses to cancel a commission that was already paid out", async () => {
     const { store, business, code } = await world({ newCustomersOnly: false });
-    const sale = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
+    const sale = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id });
     await store.setRedemptionStatus(sale.id, "paid");
     await expect(
       cancelRedemption(store, { businessId: business.id, redemptionId: sale.id }),
@@ -389,6 +397,7 @@ describe("cancelRedemption", () => {
       code: a.code.code,
       orderAmount: 100,
       source: "simulator",
+      actingBusinessId: a.business.id,
     });
     // Same store instance is not shared, so reach across explicitly:
     await expect(
@@ -405,13 +414,78 @@ describe("cancelRedemption", () => {
   });
 });
 
+describe("a business can only record sales against its own codes", () => {
+  /** A second business living in the same store as `w`, so ids resolve. */
+  async function neighbour(store: MemoryStore) {
+    const owner = await store.createUser({ name: "שכן", email: "neighbour@test.co", role: "business" });
+    return store.createBusiness({ ownerId: owner.id, name: "החנות ממול" });
+  }
+
+  it("refuses a manual sale reported against another business's code", async () => {
+    const { store, code } = await world({ newCustomersOnly: false });
+    const other = await neighbour(store);
+
+    // The neighbour tries to record a sale on our code. Allowing it would
+    // invent a commission on our books, typed from someone else's keyboard.
+    await expect(
+      redeemCode(store, {
+        code: code.code,
+        orderAmount: 500,
+        source: "manual",
+        actingBusinessId: other.id,
+      }),
+    ).rejects.toMatchObject({ code: "CODE_NOT_FOUND" });
+  });
+
+  it("refuses a manual sale with nobody acting at all", async () => {
+    const { store, code } = await world({ newCustomersOnly: false });
+    await expect(
+      redeemCode(store, { code: code.code, orderAmount: 100, source: "manual" }),
+    ).rejects.toMatchObject({ code: "NO_ACTING_BUSINESS" });
+  });
+
+  it("records a manual sale for the business that owns the code", async () => {
+    const { store, business, code } = await world({ newCustomersOnly: false });
+    const r = await redeemCode(store, {
+      code: code.code,
+      orderAmount: 200,
+      source: "manual",
+      actingBusinessId: business.id,
+    });
+    expect(r.source).toBe("manual");
+    expect(r.influencerCommission).toBe(14);
+  });
+
+  it("still refuses to say whether another business's code exists", async () => {
+    const { store, code } = await world({ newCustomersOnly: false });
+    const other = await neighbour(store);
+    // The same answer as a code that is simply not there — otherwise the form
+    // is a way to enumerate other businesses' live coupon codes.
+    const forReal = await redeemCode(store, {
+      code: code.code,
+      orderAmount: 100,
+      source: "manual",
+      actingBusinessId: other.id,
+    }).catch((e) => e);
+    const forFake = await redeemCode(store, {
+      code: "ZZZZ-ZZZZ",
+      orderAmount: 100,
+      source: "manual",
+      actingBusinessId: other.id,
+    }).catch((e) => e);
+    expect(forReal.code).toBe(forFake.code);
+    expect(forReal.message).toBe(forFake.message);
+  });
+});
+
 describe("redeemCode — the endpoint is not an oracle", () => {
   it("rejects an unknown key before revealing whether the code exists", async () => {
-    const { store, code } = await world();
+    const { store, business, code } = await world();
     const real = await redeemCode(store, {
       code: code.code,
       orderAmount: 1,
       source: "simulator",
+      actingBusinessId: business.id,
       customerRef: "buyer@x.com",
     }).catch(() => null);
     expect(real).toBeTruthy(); // the code is genuinely valid
@@ -462,14 +536,14 @@ describe("redeemCode — the endpoint is not an oracle", () => {
 describe("a cancelled sale stops counting everywhere", () => {
   it("frees the campaign's monthly cap it had consumed", async () => {
     const { store, business, code } = await world({ newCustomersOnly: false, maxRedemptionsPerMonth: 1 });
-    const first = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
+    const first = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id });
     await expect(
-      redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" }),
+      redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id }),
     ).rejects.toMatchObject({ code: "MONTHLY_CAP_REACHED" });
 
     await cancelRedemption(store, { businessId: business.id, redemptionId: first.id });
     await expect(
-      redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" }),
+      redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id }),
     ).resolves.toBeTruthy();
   });
 
@@ -477,11 +551,11 @@ describe("a cancelled sale stops counting everywhere", () => {
     const { store, business, code } = await world({ newCustomersOnly: false });
     const sales = [];
     for (let i = 0; i < 10; i++) {
-      sales.push(await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" }));
+      sales.push(await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id }));
     }
     // Ten live sales would make the next one SILVER; cancel one and it must not
     await cancelRedemption(store, { businessId: business.id, redemptionId: sales[0].id });
-    const next = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator" });
+    const next = await redeemCode(store, { code: code.code, orderAmount: 100, source: "simulator", actingBusinessId: business.id });
     expect(next.tier).toBe("BRONZE");
   });
 });
@@ -608,7 +682,7 @@ describe("a new-customers-only campaign cannot run blind", () => {
   it("does not let the rejection leak whether the code is real", async () => {
     // The identifier check runs after the code and secret checks, so an
     // unauthenticated caller never reaches it.
-    const { store, code } = await world({ newCustomersOnly: true });
+    const { store, business, code } = await world({ newCustomersOnly: true });
     await expect(
       redeemCode(store, { code: code.code, orderAmount: 100, source: "api", apiSecret: "nope" }),
     ).rejects.toMatchObject({ code: "BAD_SECRET" });
@@ -730,7 +804,7 @@ describe("a voided commission carries an explanation", () => {
 
 describe("the influencer's tracking link", () => {
   it("counts a click per code per day, never per visitor", async () => {
-    const { store, code } = await world();
+    const { store, business, code } = await world();
     await store.recordCodeClick(code.id);
     await store.recordCodeClick(code.id);
     await store.recordCodeClick(code.id);
@@ -739,7 +813,7 @@ describe("the influencer's tracking link", () => {
   });
 
   it("keeps each code's clicks separate and reports zero for a code with none", async () => {
-    const { store, campaign, influencer } = await world();
+    const { store, business, campaign, influencer } = await world();
     const a = await store.createCode({ campaignId: campaign.id, influencerId: influencer.id, status: "active" });
     const other = await store.createUser({ name: "אחר", email: "o@x.com", role: "influencer" });
     const b = await store.createCode({ campaignId: campaign.id, influencerId: other.id, status: "active" });
@@ -750,7 +824,7 @@ describe("the influencer's tracking link", () => {
   });
 
   it("excludes clicks from before the window asked for", async () => {
-    const { store, code } = await world();
+    const { store, business, code } = await world();
     await store.recordCodeClick(code.id);
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const counts = await store.countClicksByCodeIds([code.id], tomorrow);

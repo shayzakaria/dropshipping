@@ -839,6 +839,52 @@ export async function cancelSale(redemptionId: string, formData: FormData): Prom
   revalidatePath("/dashboard");
 }
 
+/**
+ * A sale reported by hand, for a shop with no automated checkout.
+ *
+ * The honest alternative to the API for businesses that close orders over
+ * WhatsApp or in person: without it, those businesses cannot use the platform
+ * at all until someone writes code inside their store.
+ *
+ * The commission it creates is real money owed to an influencer, so it is
+ * treated as a real redemption in every respect — same guards, same hold
+ * window, same cancellation path — and marked `manual` so the source is never
+ * in doubt when the numbers are audited.
+ */
+export async function reportManualSale(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "business") redirect("/login");
+  const store = await getReadyStore();
+  const business = await store.getBusinessByOwner(user.id);
+  if (!business) return { error: "לא נמצא עסק למשתמש הזה" };
+
+  const code = String(formData.get("code") ?? "").trim();
+  const orderAmount = Number(formData.get("orderAmount"));
+  const customerRef = String(formData.get("customerRef") ?? "").trim();
+  const externalOrderId = String(formData.get("externalOrderId") ?? "").trim();
+  if (!code) return { error: "צריך את הקוד שהקונה מסר" };
+
+  try {
+    const r = await redeemCode(store, {
+      code,
+      orderAmount,
+      source: "manual",
+      actingBusinessId: business.id,
+      customerRef: customerRef || undefined,
+      externalOrderId: externalOrderId || undefined,
+    });
+    revalidatePath("/dashboard");
+    return {
+      ok: true,
+      notice: `נרשמה מכירה על ${r.orderAmount} ₪. עמלת המשפיען: ${r.influencerCommission} ₪, דמי פלטפורמה: ${r.platformFee} ₪.`,
+    };
+  } catch (e) {
+    if (e instanceof DomainError) return { error: e.message };
+    console.error("[BOOST] manual sale failed", e);
+    return { error: "רישום המכירה נכשל. אפשר לנסות שוב." };
+  }
+}
+
 export async function simulatePurchase(_prev: FormState, formData: FormData): Promise<FormState> {
   const code = String(formData.get("code") ?? "").trim();
   const orderAmount = Number(formData.get("orderAmount"));
@@ -850,23 +896,26 @@ export async function simulatePurchase(_prev: FormState, formData: FormData): Pr
   // The simulator writes real redemptions, so outside demo mode it is a tool
   // for a business to test its own integration — never an open endpoint that
   // an anonymous visitor can use to mint commissions on someone else's code.
-  if (!isDemoMode()) {
+  // redeemCode enforces the ownership itself; this only decides who is acting.
+  let actingBusinessId: string | undefined;
+  if (isDemoMode()) {
+    // In the demo world anyone may play, acting as whoever owns the code.
+    const found = await store.getCodeByCode(code);
+    const campaign = found ? await store.getCampaign(found.campaignId) : null;
+    actingBusinessId = campaign?.businessId;
+  } else {
     const user = await getCurrentUser();
     if (!user || user.role !== "business") {
       return { error: "הסימולטור פתוח רק לבעלי עסק מחוברים" };
     }
-    const business = await store.getBusinessByOwner(user.id);
-    const found = await store.getCodeByCode(code);
-    const campaign = found ? await store.getCampaign(found.campaignId) : null;
-    if (!business || !campaign || campaign.businessId !== business.id) {
-      return { error: "אפשר לבדוק רק קודים של הקמפיינים שלכם" };
-    }
+    actingBusinessId = (await store.getBusinessByOwner(user.id))?.id;
   }
   try {
     const r = await redeemCode(store, {
       code,
       orderAmount,
       source: "simulator",
+      actingBusinessId,
       customerRef: customerRef || undefined,
     });
     revalidatePath("/dashboard");
