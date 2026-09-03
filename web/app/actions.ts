@@ -471,6 +471,71 @@ async function consumeCommissions(
   }
 }
 
+/**
+ * Bill every business for what it owes, for a calendar month.
+ *
+ * Only released, uncancelled sales that no statement has covered yet are
+ * billed — a sale still inside its cancellation window might not be a sale.
+ * Running it twice for the same month bills nothing twice.
+ */
+export async function issueSettlements(_prev: FormState, formData: FormData): Promise<FormState> {
+  const admin = await requireAdmin();
+  const store = await getReadyStore();
+
+  const month = String(formData.get("month") ?? "").trim(); // YYYY-MM
+  if (!/^\d{4}-\d{2}$/.test(month)) return { error: "צריך לבחור חודש" };
+  const start = `${month}-01`;
+  const end = nextMonthStart(month);
+
+  await store.recordAdminAction({
+    actorId: admin.id,
+    action: "issue_settlements",
+    subjectKind: "business",
+    subjectId: month,
+    detail: { period: month },
+  });
+
+  const issued = await store.issueSettlements({ start, end });
+  revalidatePath("/admin/settlements");
+  revalidatePath("/dashboard");
+  const total = issued.reduce((sum, s) => sum + s.total, 0);
+  return {
+    ok: true,
+    notice: issued.length
+      ? `הופקו ${issued.length} חשבונות על סך ${total.toFixed(2)} ₪.`
+      : "אין מה לחייב — כל המכירות המשוחררות כבר נכללו בחשבון קודם.",
+  };
+}
+
+/** The first day of the month after the one given as YYYY-MM. */
+function nextMonthStart(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  const year = m === 12 ? y + 1 : y;
+  const next = m === 12 ? 1 : m + 1;
+  return `${year}-${String(next).padStart(2, "0")}-01`;
+}
+
+/** Mark a statement collected, or cancel one issued by mistake. */
+export async function settleStatement(settlementId: string, formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const store = await getReadyStore();
+  const raw = formData.get("status");
+  const status = raw === "paid" ? "paid" : raw === "cancelled" ? "cancelled" : null;
+  if (!status) return refuse("settleStatement", { settlementId, raw });
+
+  const note = String(formData.get("note") ?? "").trim() || undefined;
+  await store.recordAdminAction({
+    actorId: admin.id,
+    action: status === "paid" ? "mark_settlement_paid" : "cancel_settlement",
+    subjectKind: "business",
+    subjectId: settlementId,
+    detail: { note: note ?? null },
+  });
+  await store.setSettlementStatus(settlementId, status, note);
+  revalidatePath("/admin/settlements");
+  revalidatePath("/dashboard");
+}
+
 export async function createCampaign(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await getCurrentUser();
   if (!user || user.role !== "business") redirect("/login");

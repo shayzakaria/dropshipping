@@ -156,6 +156,8 @@ export interface Redemption {
   /** The store's own order id. Makes a retried checkout call idempotent. */
   externalOrderId?: string;
   status: RedemptionStatus;
+  /** Which monthly statement billed this sale, once one has */
+  settlementId?: string;
   /** Commission is payable only from this moment on — the buyer's return window */
   holdUntil: string;
   /** When the commission was voided. Absent unless status is "cancelled". */
@@ -223,6 +225,32 @@ export interface PayoutDetails {
 }
 
 export type PayoutStatus = "requested" | "paid" | "rejected";
+
+export type SettlementStatus = "issued" | "paid" | "cancelled";
+
+/**
+ * One month's bill to one business: what it owes its influencers, plus our
+ * fee. Frozen at issue — a cancellation next week must not change a number
+ * the business was already asked to pay.
+ */
+export interface Settlement {
+  id: string;
+  businessId: string;
+  /** Inclusive */
+  periodStart: string;
+  /** Exclusive */
+  periodEnd: string;
+  /** Owed to influencers */
+  commissions: number;
+  /** Owed to us */
+  platformFees: number;
+  total: number;
+  salesCount: number;
+  status: SettlementStatus;
+  note?: string;
+  issuedAt: string;
+  paidAt?: string;
+}
 
 export interface PayoutRequest {
   id: string;

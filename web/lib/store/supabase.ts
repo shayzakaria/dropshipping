@@ -12,6 +12,8 @@ import type {
   PayoutDetails,
   PayoutRequest,
   PayoutStatus,
+  Settlement,
+  SettlementStatus,
   PoolStatus,
   Redemption,
   RedemptionStatus,
@@ -146,6 +148,36 @@ const toCampaign = (r: CampaignRow): Campaign => ({
   codeSource: r.code_source ?? "generated",
   verifiedAt: r.verified_at ?? undefined,
   createdAt: r.created_at,
+});
+
+type SettlementRow = {
+  id: string;
+  business_id: string;
+  period_start: string;
+  period_end: string;
+  commissions: number | string;
+  platform_fees: number | string;
+  total: number | string;
+  sales_count: number;
+  status: SettlementStatus;
+  note: string | null;
+  issued_at: string;
+  paid_at: string | null;
+};
+
+const toSettlement = (r: SettlementRow): Settlement => ({
+  id: r.id,
+  businessId: r.business_id,
+  periodStart: r.period_start,
+  periodEnd: r.period_end,
+  commissions: num(r.commissions),
+  platformFees: num(r.platform_fees),
+  total: num(r.total),
+  salesCount: r.sales_count,
+  status: r.status,
+  note: r.note ?? undefined,
+  issuedAt: r.issued_at,
+  paidAt: r.paid_at ?? undefined,
 });
 
 type AdminActionRow = {
@@ -499,6 +531,83 @@ export class SupabaseStore implements DataStore {
     let q = this.db.from("payout_requests").select().order("created_at", { ascending: false });
     if (status) q = q.eq("status", status);
     return (await this.many<PayoutRequestRow>(q)).map(toPayoutRequest);
+  }
+
+  async unbilledTotals(businessId: string) {
+    const rows = await this.many<{ influencer_commission: number | string; platform_fee: number | string }>(
+      this.db
+        .from("redemptions")
+        .select("influencer_commission, platform_fee")
+        .eq("business_id", businessId)
+        .is("settlement_id", null)
+        .neq("status", "cancelled")
+        .lte("hold_until", new Date().toISOString()),
+    );
+    const sum = (pick: (r: (typeof rows)[number]) => number | string) =>
+      Math.round(rows.reduce((t, r) => t + num(pick(r)), 0) * 100) / 100;
+    return {
+      commissions: sum((r) => r.influencer_commission),
+      platformFees: sum((r) => r.platform_fee),
+      count: rows.length,
+    };
+  }
+
+  async issueSettlements(period: { start: string; end: string }): Promise<Settlement[]> {
+    // One statement, in one statement. Doing this in application code would
+    // mean a window between reading the billable sales and stamping them, in
+    // which a new sale could be counted by one run and stamped by the next.
+    const { data, error } = await this.db.rpc("issue_settlements", {
+      p_period_start: period.start,
+      p_period_end: period.end,
+    });
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as SettlementRow[]).map(toSettlement);
+  }
+
+  async listSettlementsForBusiness(businessId: string): Promise<Settlement[]> {
+    const rows = await this.many<SettlementRow>(
+      this.db
+        .from("settlements")
+        .select()
+        .eq("business_id", businessId)
+        .order("period_start", { ascending: false }),
+    );
+    return rows.map(toSettlement);
+  }
+
+  async listSettlements(status?: SettlementStatus): Promise<Settlement[]> {
+    let q = this.db.from("settlements").select().order("period_start", { ascending: false });
+    if (status) q = q.eq("status", status);
+    return (await this.many<SettlementRow>(q)).map(toSettlement);
+  }
+
+  async getSettlement(id: string): Promise<Settlement | null> {
+    const r = await this.one<SettlementRow>(
+      this.db.from("settlements").select().eq("id", id).maybeSingle<SettlementRow>(),
+    );
+    return r ? toSettlement(r) : null;
+  }
+
+  async setSettlementStatus(id: string, status: SettlementStatus, note?: string): Promise<void> {
+    const { error } = await this.db
+      .from("settlements")
+      .update({
+        status,
+        note: note ?? null,
+        paid_at: status === "paid" ? new Date().toISOString() : null,
+      })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+
+    // A cancelled statement releases its sales back onto the next one, so a
+    // mistaken bill does not swallow the money it covered.
+    if (status === "cancelled") {
+      const { error: e2 } = await this.db
+        .from("redemptions")
+        .update({ settlement_id: null })
+        .eq("settlement_id", id);
+      if (e2) throw new Error(e2.message);
+    }
   }
 
   async setPayoutRequestStatus(id: string, status: PayoutStatus, note?: string): Promise<void> {

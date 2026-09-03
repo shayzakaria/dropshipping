@@ -10,6 +10,8 @@ import type {
   PayoutDetails,
   PayoutRequest,
   PayoutStatus,
+  Settlement,
+  SettlementStatus,
   CodeSource,
   PoolStatus,
   Redemption,
@@ -66,6 +68,24 @@ export interface DataStore {
   listPayoutRequests(influencerId: string): Promise<PayoutRequest[]>;
   listAllPayoutRequests(status?: PayoutStatus): Promise<PayoutRequest[]>;
   setPayoutRequestStatus(id: string, status: PayoutStatus, note?: string): Promise<void>;
+
+  // ---- Settlements: what a business owes us and its influencers
+  /**
+   * Bills every business that has released, uncancelled sales not yet on a
+   * statement, and stamps those sales with the statement that covered them.
+   * Returns the statements created. Running it twice bills nothing twice.
+   */
+  issueSettlements(period: { start: string; end: string }): Promise<Settlement[]>;
+  /** What this business owes right now, across all its open statements. */
+  listSettlementsForBusiness(businessId: string): Promise<Settlement[]>;
+  listSettlements(status?: SettlementStatus): Promise<Settlement[]>;
+  getSettlement(id: string): Promise<Settlement | null>;
+  setSettlementStatus(id: string, status: SettlementStatus, note?: string): Promise<void>;
+  /**
+   * Sales that would go on the next statement — what a business owes but has
+   * not been billed for yet.
+   */
+  unbilledTotals(businessId: string): Promise<{ commissions: number; platformFees: number; count: number }>;
 
   // ---- Files
   /**

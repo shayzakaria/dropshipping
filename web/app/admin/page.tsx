@@ -54,6 +54,12 @@ export default async function AdminPage() {
             תשלומים למשפיענים
           </Link>
           <Link
+            href="/admin/settlements"
+            className="inline-flex min-h-11 items-center rounded-lg bg-ink px-4 text-sm font-bold text-label transition hover:bg-ink/85"
+          >
+            גבייה מעסקים
+          </Link>
+          <Link
             href="/admin/preview"
             className="inline-flex min-h-11 items-center rounded-lg border border-ink/25 bg-label px-4 text-sm font-bold text-ink transition hover:bg-paper"
           >

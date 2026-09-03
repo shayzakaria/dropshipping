@@ -12,6 +12,8 @@ import type {
   PayoutDetails,
   PayoutRequest,
   PayoutStatus,
+  Settlement,
+  SettlementStatus,
   PoolStatus,
   Redemption,
   RedemptionStatus,
@@ -132,6 +134,102 @@ export class MemoryStore implements DataStore {
     return [...this.payoutRequests.values()]
       .filter((r) => !status || r.status === status)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  private readonly settlements = new Map<string, Settlement>();
+
+  /** Money is compared and summed to the agora, never to a float's whim. */
+  private static round2(n: number): number {
+    return Math.round(n * 100) / 100;
+  }
+
+  /** Released, uncancelled, not yet on any statement — the billable set. */
+  private billable(businessId: string, now = new Date()): Redemption[] {
+    const iso = now.toISOString();
+    return [...this.redemptions.values()].filter(
+      (r) =>
+        r.businessId === businessId &&
+        r.status !== "cancelled" &&
+        !r.settlementId &&
+        r.holdUntil <= iso,
+    );
+  }
+
+  async unbilledTotals(businessId: string) {
+    const rows = this.billable(businessId);
+    return {
+      commissions: MemoryStore.round2(rows.reduce((s, r) => s + r.influencerCommission, 0)),
+      platformFees: MemoryStore.round2(rows.reduce((s, r) => s + r.platformFee, 0)),
+      count: rows.length,
+    };
+  }
+
+  async issueSettlements(period: { start: string; end: string }): Promise<Settlement[]> {
+    const out: Settlement[] = [];
+    for (const business of this.businesses.values()) {
+      // One statement per business per period: a second run bills nothing.
+      const already = [...this.settlements.values()].some(
+        (s) => s.businessId === business.id && s.periodStart === period.start,
+      );
+      if (already) continue;
+
+      const rows = this.billable(business.id);
+      if (!rows.length) continue;
+
+      const commissions = MemoryStore.round2(rows.reduce((s, r) => s + r.influencerCommission, 0));
+      const platformFees = MemoryStore.round2(rows.reduce((s, r) => s + r.platformFee, 0));
+      const settlement: Settlement = {
+        id: randomUUID(),
+        businessId: business.id,
+        periodStart: period.start,
+        periodEnd: period.end,
+        commissions,
+        platformFees,
+        total: MemoryStore.round2(commissions + platformFees),
+        salesCount: rows.length,
+        status: "issued",
+        issuedAt: this.now(),
+      };
+      this.settlements.set(settlement.id, settlement);
+      // Stamp what this statement covered, so it can always be re-derived.
+      for (const r of rows) this.redemptions.set(r.id, { ...r, settlementId: settlement.id });
+      out.push(settlement);
+    }
+    return out;
+  }
+
+  async listSettlementsForBusiness(businessId: string): Promise<Settlement[]> {
+    return [...this.settlements.values()]
+      .filter((s) => s.businessId === businessId)
+      .sort((a, b) => b.periodStart.localeCompare(a.periodStart));
+  }
+
+  async listSettlements(status?: SettlementStatus): Promise<Settlement[]> {
+    return [...this.settlements.values()]
+      .filter((s) => !status || s.status === status)
+      .sort((a, b) => b.periodStart.localeCompare(a.periodStart));
+  }
+
+  async getSettlement(id: string): Promise<Settlement | null> {
+    return this.settlements.get(id) ?? null;
+  }
+
+  async setSettlementStatus(id: string, status: SettlementStatus, note?: string): Promise<void> {
+    const s = this.settlements.get(id);
+    if (!s) return;
+    this.settlements.set(id, {
+      ...s,
+      status,
+      note: note ?? s.note,
+      paidAt: status === "paid" ? this.now() : s.paidAt,
+    });
+    // A cancelled statement releases its sales back onto the next one, so a
+    // mistaken bill does not swallow the money it covered.
+    if (status === "cancelled") {
+      for (const r of this.redemptions.values()) {
+        if (r.settlementId === id) this.redemptions.set(r.id, { ...r, settlementId: undefined });
+      }
+    }
   }
 
   async setPayoutRequestStatus(id: string, status: PayoutStatus, note?: string): Promise<void> {

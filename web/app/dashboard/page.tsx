@@ -26,6 +26,7 @@ import type { DataStore } from "@/lib/store/store";
 import { cancelSale, setCampaignState } from "../actions";
 import { CampaignCodesPanel } from "@/components/CampaignCodesPanel";
 import { ManualSaleForm } from "@/components/ManualSaleForm";
+import { BusinessBalance } from "@/components/BusinessBalance";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,10 @@ export async function BusinessDashboard({ user, store }: { user: User; store: Da
     store.listCodesByCampaignIds(campaigns.map((c) => c.id)),
     namesById(store, redemptions.map((r) => r.influencerId)),
     store.poolStatusForCampaigns(campaigns.map((c) => c.id)),
+  ]);
+  const [settlements, unbilled] = await Promise.all([
+    store.listSettlementsForBusiness(business.id),
+    store.unbilledTotals(business.id),
   ]);
   // One unclaimed code per campaign, so the business has something concrete to
   // try at its own checkout when confirming the campaign works.
@@ -223,6 +228,9 @@ export async function BusinessDashboard({ user, store }: { user: User; store: Da
 
       <SectionTitle>מכירות אחרונות</SectionTitle>
       <RedemptionsTable redemptions={redemptions.slice(0, 15)} names={influencerNames} perspective="business" />
+
+      <SectionTitle>מה אני חייב</SectionTitle>
+      <BusinessBalance settlements={settlements} unbilled={unbilled} />
 
       <SectionTitle>רישום מכירה בלי קופה מחוברת</SectionTitle>
       <Card>
