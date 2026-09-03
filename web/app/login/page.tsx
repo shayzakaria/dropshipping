@@ -2,6 +2,8 @@ import { Card } from "@/components/ui";
 import { MegaphoneIcon, StoreIcon } from "@/components/icons";
 import { getReadyStore, isDemoMode } from "@/lib/store";
 import { isAuthConfigured } from "@/lib/supabase-auth";
+import { GoogleButton } from "@/components/GoogleButton";
+import { isGoogleAuthEnabled } from "@/lib/supabase-auth";
 import { loginAs } from "../actions";
 import { RegisterForm } from "./RegisterForm";
 import { SignInForm } from "./SignInForm";
@@ -12,6 +14,7 @@ export default async function LoginPage() {
   const store = await getReadyStore();
   const demo = isDemoMode();
   const withPassword = isAuthConfigured();
+  const withGoogle = isGoogleAuthEnabled();
   // Never list real accounts: the list is what makes passwordless sign-in work
   const users = demo ? await store.listUsers() : [];
 
@@ -28,6 +31,16 @@ export default async function LoginPage() {
               ? "היכנסו כאחת מדמויות הדמו כדי לראות את שני הצדדים של הפלטפורמה."
               : "כניסה עם סיסמה תיפתח בקרוב. כניסת הדמו סגורה כשמחוברים נתונים אמיתיים."}
         </p>
+        {withGoogle ? (
+          <div className="mt-4">
+            <GoogleButton label="כניסה עם Google" />
+            <p className="mt-3 flex items-center gap-2 text-xs text-mut">
+              <span className="h-px flex-1 bg-ink/15" />
+              או עם אימייל
+              <span className="h-px flex-1 bg-ink/15" />
+            </p>
+          </div>
+        ) : null}
         {withPassword ? (
           <div className="mt-4">
             <SignInForm />
@@ -60,6 +73,16 @@ export default async function LoginPage() {
             ? "פתיחת חשבון לוקחת דקה. בוחרים תפקיד, ומתחילים."
             : "בדמו אין סיסמה — בגרסת הפרודקשן זה יוחלף ב-Supabase Auth."}
         </p>
+        {withGoogle ? (
+          <div className="mt-4">
+            <GoogleButton label="הרשמה עם Google" />
+            <p className="mt-3 flex items-center gap-2 text-xs text-mut">
+              <span className="h-px flex-1 bg-ink/15" />
+              או במילוי הפרטים
+              <span className="h-px flex-1 bg-ink/15" />
+            </p>
+          </div>
+        ) : null}
         <div className="mt-4">
           <RegisterForm withPassword={withPassword} />
         </div>

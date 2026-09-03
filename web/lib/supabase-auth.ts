@@ -16,6 +16,18 @@ export function isAuthConfigured(): boolean {
   return Boolean(AUTH_URL && AUTH_KEY);
 }
 
+/**
+ * Whether to offer Google.
+ *
+ * Behind a flag rather than always on: enabling the provider is a step taken
+ * in the Supabase dashboard, and a Google button that appears before that is
+ * done takes people to an error page. One environment variable is a smaller
+ * cost than a broken front door.
+ */
+export function isGoogleAuthEnabled(): boolean {
+  return isAuthConfigured() && process.env.GOOGLE_AUTH_ENABLED === "true";
+}
+
 export async function getAuthClient() {
   if (!AUTH_URL || !AUTH_KEY) {
     throw new Error("Supabase Auth is not configured");

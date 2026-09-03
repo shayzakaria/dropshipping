@@ -23,6 +23,8 @@ export interface DataStore {
   getUser(id: string): Promise<User | null>;
   getUserByEmail(email: string): Promise<User | null>;
   getUserByAuthId(authUserId: string): Promise<User | null>;
+  /** Attach an auth identity to an existing profile (same person, new sign-in method). */
+  linkAuthUser(userId: string, authUserId: string): Promise<void>;
   listUsers(): Promise<User[]>;
   listUsersByIds(ids: string[]): Promise<User[]>;
 

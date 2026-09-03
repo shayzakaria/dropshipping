@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { clearSession, getCurrentUser, setSession } from "@/lib/auth";
@@ -176,6 +177,127 @@ function isHttpUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Where Supabase should send someone back to after an email link or Google. */
+async function siteOrigin(): Promise<string> {
+  const h = await headers();
+  const explicit = process.env.SITE_URL;
+  if (explicit) return explicit.replace(/\/$/, "");
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+/**
+ * Send a password reset link.
+ *
+ * Always answers the same way, whether or not the address is registered.
+ * A form that says "no such user" is a free membership check for anyone who
+ * wants to know which of their contacts is on the platform.
+ */
+export async function requestPasswordReset(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const sent = {
+    notice:
+      "אם הכתובת רשומה אצלנו, שלחנו אליה קישור לבחירת סיסמה חדשה. הקישור תקף לשעה.",
+  };
+  if (!email.includes("@")) return { error: "צריך כתובת אימייל תקינה" };
+  if (!isAuthConfigured()) return { error: "איפוס סיסמה עוד לא זמין" };
+
+  const supabase = await getAuthClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${await siteOrigin()}/auth/callback?next=/reset/new`,
+  });
+  // Rate limiting is worth surfacing — it is about us, not about them.
+  if (error && /rate limit|too many/i.test(error.message)) {
+    return { error: authErrorMessage(error.message) };
+  }
+  if (error) console.error("[BOOST] reset email failed", error.message);
+  return sent;
+}
+
+/** Set a new password. Only reachable while holding a recovery session. */
+export async function setNewPassword(_prev: FormState, formData: FormData): Promise<FormState> {
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return { error: `הסיסמה צריכה להיות באורך ${MIN_PASSWORD_LENGTH} תווים לפחות` };
+  }
+  if (password !== confirm) return { error: "שתי הסיסמאות לא זהות" };
+  if (!isAuthConfigured()) return { error: "איפוס סיסמה עוד לא זמין" };
+
+  const supabase = await getAuthClient();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) {
+    return { error: "הקישור פג או כבר נוצל. אפשר לבקש קישור חדש." };
+  }
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { error: authErrorMessage(error.message) };
+  redirect("/dashboard");
+}
+
+/** Start the Google flow. Supabase handles the round trip. */
+export async function signInWithGoogle(): Promise<void> {
+  if (!isAuthConfigured()) redirect("/login?error=auth");
+  const supabase = await getAuthClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${await siteOrigin()}/auth/callback` },
+  });
+  if (error || !data.url) {
+    console.error("[BOOST] google sign-in unavailable", error?.message);
+    redirect("/login?error=google");
+  }
+  redirect(data.url);
+}
+
+/**
+ * Finish a Google sign-up.
+ *
+ * Google tells us who someone is, not what they came to do. An account with
+ * no role would land on a dashboard that cannot decide what to render, so the
+ * profile is created here, once, after they choose.
+ */
+export async function completeOAuthProfile(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (!isAuthConfigured()) return { error: "לא זמין" };
+  const supabase = await getAuthClient();
+  const { data } = await supabase.auth.getUser();
+  const authUser = data.user;
+  if (!authUser?.email) return { error: "צריך להתחבר מחדש" };
+
+  const store = await getReadyStore();
+  if (await store.getUserByAuthId(authUser.id)) redirect("/dashboard");
+
+  const role = String(formData.get("role") ?? "") as Role;
+  const businessName = String(formData.get("businessName") ?? "").trim();
+  const name =
+    String(formData.get("name") ?? "").trim() ||
+    (authUser.user_metadata?.full_name as string | undefined) ||
+    authUser.email.split("@")[0];
+  if (role !== "business" && role !== "influencer") return { error: "בחרו תפקיד: עסק או משפיען" };
+  if (role === "business" && !businessName) return { error: "לעסק צריך שם עסק" };
+
+  const email = authUser.email.toLowerCase();
+  const existing = await store.getUserByEmail(email);
+  if (existing) {
+    // Someone signed up with a password and is now arriving through Google on
+    // the same address. Same person, same account — link, do not duplicate.
+    await store.linkAuthUser(existing.id, authUser.id);
+    redirect("/dashboard");
+  }
+
+  const user = await store.createUser({ name, email, role, authUserId: authUser.id });
+  if (role === "business") {
+    await store.createBusiness({ ownerId: user.id, name: businessName });
+  }
+  redirect("/dashboard");
 }
 
 export async function createCampaign(_prev: FormState, formData: FormData): Promise<FormState> {

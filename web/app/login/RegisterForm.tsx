@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { register, type FormState } from "../actions";
 import { MegaphoneIcon, StoreIcon } from "@/components/icons";
+import { PasswordInput } from "@/components/PasswordInput";
 import { btnPrimaryWide, inputCls } from "@/components/ui";
 
 export function RegisterForm({ withPassword }: { withPassword: boolean }) {
@@ -55,15 +56,11 @@ export function RegisterForm({ withPassword }: { withPassword: boolean }) {
         dir="ltr"
       />
       {withPassword && (
-        <input
-          name="password"
-          type="password"
-          placeholder="סיסמה (8 תווים לפחות)"
+        <PasswordInput
+          label="סיסמה"
           autoComplete="new-password"
           minLength={8}
-          className={inputCls}
-          required
-          dir="ltr"
+          hint="8 תווים לפחות. לחיצה על העין מראה מה הקלדתם."
         />
       )}
       {role === "business" && (

@@ -56,6 +56,11 @@ export class MemoryStore implements DataStore {
     return null;
   }
 
+  async linkAuthUser(userId: string, authUserId: string): Promise<void> {
+    const u = this.users.get(userId);
+    if (u) this.users.set(userId, { ...u, authUserId });
+  }
+
   async listUsersByIds(ids: string[]): Promise<User[]> {
     const want = new Set(ids);
     return [...this.users.values()].filter((u) => want.has(u.id));

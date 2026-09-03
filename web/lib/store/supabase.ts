@@ -295,6 +295,14 @@ export class SupabaseStore implements DataStore {
     return r ? toUser(r) : null;
   }
 
+  async linkAuthUser(userId: string, authUserId: string): Promise<void> {
+    const { error } = await this.db
+      .from("profiles")
+      .update({ auth_user_id: authUserId })
+      .eq("id", userId);
+    if (error) throw new Error(error.message);
+  }
+
   async listUsersByIds(ids: string[]): Promise<User[]> {
     if (ids.length === 0) return [];
     const rows = await this.many<ProfileRow>(this.db.from("profiles").select().in("id", ids));
