@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { updateBusinessProfile, type FormState } from "@/app/actions";
 import { btnPrimary, inputCls } from "./ui";
+import { LogoField } from "./LogoField";
 import type { Business } from "@/lib/domain/types";
 
 /**
@@ -53,20 +54,16 @@ export function BusinessProfileForm({ business }: { business: Business }) {
         </span>
       </label>
 
-      <label className="block text-sm">
-        <span className="font-medium">קישור ללוגו (אופציונלי)</span>
-        <input
-          name="logoUrl"
-          type="url"
-          defaultValue={business.logoUrl ?? ""}
-          placeholder="https://my-shop.co.il/logo.png"
-          className={`${inputCls} mt-1`}
-          dir="ltr"
-        />
-        <span className="mt-1 block text-xs font-light text-mut">
-          כתובת של תמונה מהאתר שלכם. בלי זה נציג את ראשי התיבות של שם העסק.
-        </span>
-      </label>
+      {/*
+        Keyed on the stored logo so a successful save remounts the field with
+        the fresh URL: otherwise the "picked, not saved yet" note stays on
+        screen after it has, in fact, been saved.
+      */}
+      <LogoField
+        key={business.logoUrl ?? "none"}
+        currentUrl={business.logoUrl}
+        businessName={business.name}
+      />
 
       {state.error ? (
         <p className="text-sm font-medium text-err" role="alert">

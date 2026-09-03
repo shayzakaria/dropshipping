@@ -74,8 +74,12 @@ export function CampaignForm() {
             onChange={(e) => setBuyerDiscountPct(Number(e.target.value))}
             min={1}
             max={40}
+            aria-describedby="buyer-pct-note"
             className={`${inputCls} tabular mt-1 font-mono`}
           />
+          <span id="buyer-pct-note" className="mt-1 block text-xs font-light text-mut">
+            אתם בוחרים, 1% עד 40%. אפשר קמפיין נדיב ואפשר צנוע — ובקמפיין הבא אחרת.
+          </span>
         </label>
         <label className="block text-sm">
           <span className="font-medium">עמלת משפיען (%)</span>
@@ -86,8 +90,12 @@ export function CampaignForm() {
             onChange={(e) => setInfluencerPct(Number(e.target.value))}
             min={1}
             max={30}
+            aria-describedby="influencer-pct-note"
             className={`${inputCls} tabular mt-1 font-mono`}
           />
+          <span id="influencer-pct-note" className="mt-1 block text-xs font-light text-mut">
+            גם זה שלכם, 1% עד 30%. ככל שיותר גבוה, כך יותר משפיענים יבחרו לקדם.
+          </span>
         </label>
         <label className="block text-sm">
           <span className="font-medium">דמי פלטפורמה (%)</span>

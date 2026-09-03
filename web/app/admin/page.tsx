@@ -48,6 +48,12 @@ export default async function AdminPage() {
             תמיכה בחשבונות
           </Link>
           <Link
+            href="/admin/payouts"
+            className="inline-flex min-h-11 items-center rounded-lg border border-ink/25 bg-label px-4 text-sm font-bold text-ink transition hover:bg-paper"
+          >
+            תשלומים למשפיענים
+          </Link>
+          <Link
             href="/admin/preview"
             className="inline-flex min-h-11 items-center rounded-lg border border-ink/25 bg-label px-4 text-sm font-bold text-ink transition hover:bg-paper"
           >

@@ -107,6 +107,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <span className="mt-1 self-start text-[10px] font-semibold text-mut">שם זמני</span>
             </Link>
             <nav className="flex flex-wrap items-center gap-1">
+              <Link href="/how-it-works" className={navLink}>
+                איך זה עובד
+              </Link>
               <Link href="/businesses" className={navLink}>
                 העסקים שאיתנו
               </Link>

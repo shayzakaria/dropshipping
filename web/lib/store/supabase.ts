@@ -8,6 +8,9 @@ import type {
   CampaignScope,
   CampaignStatus,
   CouponCode,
+  PayoutDetails,
+  PayoutRequest,
+  PayoutStatus,
   Redemption,
   RedemptionStatus,
   TierName,
@@ -15,7 +18,7 @@ import type {
 } from "../domain/types";
 import { generateCode, normalizeCode } from "../domain/logic";
 import { computeAdminSnapshot } from "../domain/admin";
-import type { AdminSnapshot, DataStore, SupportView } from "./store";
+import type { AdminSnapshot, DataStore, LogoFile, SupportView } from "./store";
 
 /**
  * Supabase-backed DataStore. Runs server-side only with the project's secret
@@ -157,6 +160,48 @@ const toAdminAction = (r: AdminActionRow): AdminAction => ({
   subjectId: r.subject_id,
   detail: r.detail ?? undefined,
   createdAt: r.created_at,
+});
+
+type PayoutDetailsRow = {
+  influencer_id: string;
+  legal_name: string;
+  national_id: string;
+  bank_name: string;
+  branch: string;
+  account_number: string;
+  tax_status: PayoutDetails["taxStatus"];
+  updated_at: string;
+};
+
+const toPayoutDetails = (r: PayoutDetailsRow): PayoutDetails => ({
+  influencerId: r.influencer_id,
+  legalName: r.legal_name,
+  nationalId: r.national_id,
+  bankName: r.bank_name,
+  branch: r.branch,
+  accountNumber: r.account_number,
+  taxStatus: r.tax_status,
+  updatedAt: r.updated_at,
+});
+
+type PayoutRequestRow = {
+  id: string;
+  influencer_id: string;
+  amount: number | string;
+  status: PayoutStatus;
+  note: string | null;
+  created_at: string;
+  settled_at: string | null;
+};
+
+const toPayoutRequest = (r: PayoutRequestRow): PayoutRequest => ({
+  id: r.id,
+  influencerId: r.influencer_id,
+  amount: num(r.amount),
+  status: r.status,
+  note: r.note ?? undefined,
+  createdAt: r.created_at,
+  settledAt: r.settled_at ?? undefined,
 });
 
 const toCode = (r: CodeRow): CouponCode => ({
@@ -401,6 +446,90 @@ export class SupabaseStore implements DataStore {
       .single<AdminActionRow>();
     if (error) throw new Error(error.message);
     return toAdminAction(data!);
+  }
+
+  async getPayoutDetails(influencerId: string): Promise<PayoutDetails | null> {
+    const r = await this.one<PayoutDetailsRow>(
+      this.db.from("payout_details").select().eq("influencer_id", influencerId).maybeSingle<PayoutDetailsRow>(),
+    );
+    return r ? toPayoutDetails(r) : null;
+  }
+
+  async savePayoutDetails(input: Omit<PayoutDetails, "updatedAt">): Promise<void> {
+    const { error } = await this.db.from("payout_details").upsert(
+      {
+        influencer_id: input.influencerId,
+        legal_name: input.legalName,
+        national_id: input.nationalId,
+        bank_name: input.bankName,
+        branch: input.branch,
+        account_number: input.accountNumber,
+        tax_status: input.taxStatus,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "influencer_id" },
+    );
+    if (error) throw new Error(error.message);
+  }
+
+  async createPayoutRequest(influencerId: string, amount: number): Promise<PayoutRequest> {
+    const { data, error } = await this.db
+      .from("payout_requests")
+      .insert({ influencer_id: influencerId, amount })
+      .select()
+      .single<PayoutRequestRow>();
+    if (error) throw new Error(error.message);
+    return toPayoutRequest(data!);
+  }
+
+  async listPayoutRequests(influencerId: string): Promise<PayoutRequest[]> {
+    const rows = await this.many<PayoutRequestRow>(
+      this.db.from("payout_requests").select().eq("influencer_id", influencerId).order("created_at", { ascending: false }),
+    );
+    return rows.map(toPayoutRequest);
+  }
+
+  async listAllPayoutRequests(status?: PayoutStatus): Promise<PayoutRequest[]> {
+    let q = this.db.from("payout_requests").select().order("created_at", { ascending: false });
+    if (status) q = q.eq("status", status);
+    return (await this.many<PayoutRequestRow>(q)).map(toPayoutRequest);
+  }
+
+  async setPayoutRequestStatus(id: string, status: PayoutStatus, note?: string): Promise<void> {
+    const { error } = await this.db
+      .from("payout_requests")
+      .update({ status, note: note ?? null, settled_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  /**
+   * Puts the logo in the public `logos` bucket under the business's own folder
+   * and returns its URL.
+   *
+   * The filename carries a timestamp rather than being overwritten in place:
+   * a public bucket sits behind a CDN, and reusing the path means a business
+   * replaces its logo and keeps seeing the old one. Previous files in the
+   * folder are removed after the new one is safely up, so a failed upload
+   * never leaves a business with no logo at all.
+   */
+  async uploadLogo(businessId: string, file: LogoFile): Promise<string> {
+    const bucket = this.db.storage.from("logos");
+    const path = `${businessId}/logo-${Date.now()}.${file.ext}`;
+
+    const { error } = await bucket.upload(path, file.bytes, {
+      contentType: file.mime,
+      cacheControl: "public, max-age=31536000, immutable",
+    });
+    if (error) throw new Error(error.message);
+
+    const { data: existing } = await bucket.list(businessId);
+    const stale = (existing ?? [])
+      .map((f) => `${businessId}/${f.name}`)
+      .filter((p) => p !== path);
+    if (stale.length) await bucket.remove(stale);
+
+    return bucket.getPublicUrl(path).data.publicUrl;
   }
 
   async listAdminActions(limit: number): Promise<AdminAction[]> {

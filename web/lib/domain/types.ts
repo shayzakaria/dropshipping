@@ -185,3 +185,30 @@ export interface AdminAction {
   detail?: Record<string, unknown>;
   createdAt: string;
 }
+
+/** How an influencer is paid. Asked for only when there is money to send. */
+export interface PayoutDetails {
+  influencerId: string;
+  /** As written on the bank account, which is not always the display name */
+  legalName: string;
+  nationalId: string;
+  bankName: string;
+  branch: string;
+  accountNumber: string;
+  /** Decides whether they invoice us and how the payment is reported */
+  taxStatus: "exempt" | "licensed" | "none";
+  updatedAt: string;
+}
+
+export type PayoutStatus = "requested" | "paid" | "rejected";
+
+export interface PayoutRequest {
+  id: string;
+  influencerId: string;
+  /** Frozen at the moment of asking, so later sales cannot move the goalposts */
+  amount: number;
+  status: PayoutStatus;
+  note?: string;
+  createdAt: string;
+  settledAt?: string;
+}

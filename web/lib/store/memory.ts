@@ -8,13 +8,16 @@ import type {
   CampaignScope,
   CampaignStatus,
   CouponCode,
+  PayoutDetails,
+  PayoutRequest,
+  PayoutStatus,
   Redemption,
   RedemptionStatus,
   User,
 } from "../domain/types";
 import { computeAdminSnapshot } from "../domain/admin";
 import { generateCode, monthKey, normalizeCode } from "../domain/logic";
-import type { AdminSnapshot, DataStore, SupportView } from "./store";
+import type { AdminSnapshot, DataStore, LogoFile, SupportView } from "./store";
 
 export class MemoryStore implements DataStore {
   users = new Map<string, User>();
@@ -94,6 +97,56 @@ export class MemoryStore implements DataStore {
   }
 
   private readonly adminLog: AdminAction[] = [];
+  private readonly payoutDetails = new Map<string, PayoutDetails>();
+  private readonly payoutRequests = new Map<string, PayoutRequest>();
+
+  async getPayoutDetails(influencerId: string): Promise<PayoutDetails | null> {
+    return this.payoutDetails.get(influencerId) ?? null;
+  }
+
+  async savePayoutDetails(input: Omit<PayoutDetails, "updatedAt">): Promise<void> {
+    this.payoutDetails.set(input.influencerId, { ...input, updatedAt: this.now() });
+  }
+
+  async createPayoutRequest(influencerId: string, amount: number): Promise<PayoutRequest> {
+    const row: PayoutRequest = {
+      id: randomUUID(),
+      influencerId,
+      amount,
+      status: "requested",
+      createdAt: this.now(),
+    };
+    this.payoutRequests.set(row.id, row);
+    return row;
+  }
+
+  async listPayoutRequests(influencerId: string): Promise<PayoutRequest[]> {
+    return [...this.payoutRequests.values()]
+      .filter((r) => r.influencerId === influencerId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async listAllPayoutRequests(status?: PayoutStatus): Promise<PayoutRequest[]> {
+    return [...this.payoutRequests.values()]
+      .filter((r) => !status || r.status === status)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async setPayoutRequestStatus(id: string, status: PayoutStatus, note?: string): Promise<void> {
+    const r = this.payoutRequests.get(id);
+    if (r) this.payoutRequests.set(id, { ...r, status, note, settledAt: this.now() });
+  }
+
+  /**
+   * The demo store has nowhere to put a file, so the image comes back as a
+   * data URL. That renders identically in an <img>, which keeps the upload
+   * path exercisable in local development and in tests without a bucket.
+   */
+  async uploadLogo(_businessId: string, file: LogoFile): Promise<string> {
+    const base64 = Buffer.from(file.bytes).toString("base64");
+    return `data:${file.mime};base64,${base64}`;
+  }
+
 
   async setUserSuspended(userId: string, reason: string | null): Promise<void> {
     const u = this.users.get(userId);

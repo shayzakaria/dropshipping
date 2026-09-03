@@ -11,9 +11,12 @@ import {
   validateCampaignSplit,
 } from "@/lib/domain/logic";
 import { cancelRedemption, redeemCode } from "@/lib/domain/service";
+import { walletStats } from "@/lib/domain/stats";
 import { getReadyStore, isDemoMode } from "@/lib/store";
 import { authErrorMessage, getAuthClient, isAuthConfigured } from "@/lib/supabase-auth";
 import type { CampaignScope, CampaignStatus, Role } from "@/lib/domain/types";
+import type { DataStore } from "@/lib/store/store";
+import { MAX_LOGO_BYTES, sniffLogo } from "@/lib/domain/images";
 
 export interface FormState {
   error?: string;
@@ -151,6 +154,7 @@ export async function updateBusinessProfile(
   const description = String(formData.get("description") ?? "").trim();
   const storeUrl = String(formData.get("storeUrl") ?? "").trim();
   const logoUrl = String(formData.get("logoUrl") ?? "").trim();
+  const logoFile = formData.get("logoFile");
 
   if (!name) return { error: "לעסק צריך שם" };
   if (description.length > 300) return { error: "התיאור ארוך מדי — עד 300 תווים" };
@@ -159,15 +163,53 @@ export async function updateBusinessProfile(
   if (storeUrl && !isHttpUrl(storeUrl)) return { error: "כתובת החנות צריכה להתחיל ב-https" };
   if (logoUrl && !isHttpUrl(logoUrl)) return { error: "כתובת הלוגו צריכה להתחיל ב-https" };
 
+  // The link field is the state of the logo: emptying it removes the logo.
+  // A picked file wins over it, being the more deliberate of the two actions.
+  let nextLogo: string | undefined = logoUrl || undefined;
+  if (logoFile instanceof File && logoFile.size > 0) {
+    const uploaded = await storeLogo(store, business.id, logoFile);
+    if (uploaded.error) return { error: uploaded.error };
+    nextLogo = uploaded.url;
+  }
+
   await store.updateBusinessProfile(business.id, {
     name,
     storeUrl: storeUrl || undefined,
     description: description || undefined,
-    logoUrl: logoUrl || undefined,
+    logoUrl: nextLogo || undefined,
   });
   revalidatePath("/dashboard");
   revalidatePath("/businesses");
   return { ok: true, notice: "הפרופיל עודכן" };
+}
+
+/**
+ * Reads an uploaded logo, checks it really is one, and stores it.
+ *
+ * Size is checked before the bytes are read into memory, and the format is
+ * decided by the bytes rather than by the content type the browser declared —
+ * the file becomes a public URL rendered in an <img>, so "the uploader said
+ * it was a PNG" is not good enough.
+ */
+async function storeLogo(
+  store: DataStore,
+  businessId: string,
+  file: File,
+): Promise<{ url?: string; error?: string }> {
+  if (file.size > MAX_LOGO_BYTES) {
+    return { error: "הקובץ גדול מדי — עד 2MB" };
+  }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const kind = sniffLogo(bytes);
+  if (!kind) {
+    return { error: "אפשר להעלות רק תמונת PNG, JPG או WebP" };
+  }
+  try {
+    return { url: await store.uploadLogo(businessId, { bytes, ...kind }) };
+  } catch (e) {
+    console.error("[BOOST] logo upload failed", e);
+    return { error: "העלאת הלוגו נכשלה. אפשר לנסות שוב או להדביק קישור לתמונה." };
+  }
 }
 
 function isHttpUrl(value: string): boolean {
@@ -298,6 +340,100 @@ export async function completeOAuthProfile(
     await store.createBusiness({ ownerId: user.id, name: businessName });
   }
   redirect("/dashboard");
+}
+
+/**
+ * Where to send the money.
+ *
+ * Asked for at the moment it is needed and not a second before: signing up
+ * stays a name and an email, because a bank account is irrelevant until there
+ * is something to put in it, and asking up front is how you lose people at
+ * the door.
+ */
+export async function savePayoutDetails(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "influencer") return { error: "פרטי תשלום רלוונטיים למשפיענים" };
+
+  const legalName = String(formData.get("legalName") ?? "").trim();
+  const nationalId = String(formData.get("nationalId") ?? "").replace(/\D/g, "");
+  const bankName = String(formData.get("bankName") ?? "").trim();
+  const branch = String(formData.get("branch") ?? "").replace(/\D/g, "");
+  const accountNumber = String(formData.get("accountNumber") ?? "").replace(/\D/g, "");
+  const taxStatus = String(formData.get("taxStatus") ?? "");
+
+  if (!legalName) return { error: "צריך שם מלא כפי שהוא מופיע בבנק" };
+  if (nationalId.length < 8 || nationalId.length > 9) {
+    return { error: "מספר תעודת זהות צריך להיות 9 ספרות" };
+  }
+  if (!bankName) return { error: "צריך לבחור בנק" };
+  if (!branch) return { error: "צריך מספר סניף" };
+  if (!accountNumber) return { error: "צריך מספר חשבון" };
+  if (taxStatus !== "exempt" && taxStatus !== "licensed" && taxStatus !== "none") {
+    return { error: "צריך לבחור מעמד לצורכי מס" };
+  }
+
+  const store = await getReadyStore();
+  await store.savePayoutDetails({
+    influencerId: user.id,
+    legalName,
+    nationalId,
+    bankName,
+    branch,
+    accountNumber,
+    taxStatus,
+  });
+  revalidatePath("/dashboard");
+  return { ok: true, notice: "פרטי התשלום נשמרו. אפשר לבקש משיכה." };
+}
+
+/**
+ * Ask for the available balance.
+ *
+ * The amount is frozen at the moment of asking. A sale that lands tomorrow,
+ * or a return that voids one, must not silently change a figure both sides
+ * already agreed on.
+ */
+export async function requestPayout(): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "influencer") return refuse("requestPayout", { role: user.role });
+
+  const store = await getReadyStore();
+  const [details, redemptions, open] = await Promise.all([
+    store.getPayoutDetails(user.id),
+    store.listRedemptionsByInfluencer(user.id),
+    store.listPayoutRequests(user.id),
+  ]);
+  if (!details) return refuse("requestPayout", { reason: "no payout details" });
+  // One open request at a time, or the same balance gets claimed twice.
+  if (open.some((r) => r.status === "requested")) {
+    return refuse("requestPayout", { reason: "already pending" });
+  }
+
+  const wallet = walletStats(redemptions, new Date());
+  if (!wallet.canWithdraw) return refuse("requestPayout", { available: wallet.available });
+
+  await store.createPayoutRequest(user.id, wallet.available);
+  revalidatePath("/dashboard");
+}
+
+/** Operator marks a transfer done, or declines it with a reason. */
+export async function settlePayout(requestId: string, formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const store = await getReadyStore();
+  const status = formData.get("status") === "paid" ? "paid" : "rejected";
+  const note = String(formData.get("note") ?? "").trim() || undefined;
+  await store.recordAdminAction({
+    actorId: admin.id,
+    action: status === "paid" ? "mark_payout_paid" : "reject_payout",
+    subjectKind: "user",
+    subjectId: requestId,
+    detail: { note: note ?? null },
+  });
+  await store.setPayoutRequestStatus(requestId, status, note);
+  revalidatePath("/admin/payouts");
+  revalidatePath("/dashboard");
 }
 
 export async function createCampaign(_prev: FormState, formData: FormData): Promise<FormState> {

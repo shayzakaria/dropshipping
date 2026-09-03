@@ -7,6 +7,9 @@ import type {
   CampaignScope,
   CampaignStatus,
   CouponCode,
+  PayoutDetails,
+  PayoutRequest,
+  PayoutStatus,
   Redemption,
   RedemptionStatus,
   User,
@@ -17,6 +20,13 @@ import type {
  * a Supabase implementation (see db/migrations) will replace it without
  * touching the domain logic or the UI.
  */
+/** A logo whose bytes have been sniffed, so the type is ours and not the browser's. */
+export interface LogoFile {
+  bytes: Uint8Array;
+  mime: string;
+  ext: string;
+}
+
 export interface DataStore {
   // Users
   createUser(input: Omit<User, "id" | "createdAt">): Promise<User>;
@@ -46,6 +56,21 @@ export interface DataStore {
   setUserSuspended(userId: string, reason: string | null): Promise<void>;
   setCodeStatus(codeId: string, status: CouponCode["status"]): Promise<void>;
   recordAdminAction(input: Omit<AdminAction, "id" | "createdAt">): Promise<AdminAction>;
+
+  // ---- Payouts
+  getPayoutDetails(influencerId: string): Promise<PayoutDetails | null>;
+  savePayoutDetails(input: Omit<PayoutDetails, "updatedAt">): Promise<void>;
+  createPayoutRequest(influencerId: string, amount: number): Promise<PayoutRequest>;
+  listPayoutRequests(influencerId: string): Promise<PayoutRequest[]>;
+  listAllPayoutRequests(status?: PayoutStatus): Promise<PayoutRequest[]>;
+  setPayoutRequestStatus(id: string, status: PayoutStatus, note?: string): Promise<void>;
+
+  // ---- Files
+  /**
+   * Stores a logo image and returns a URL usable directly as an <img src>.
+   * The bytes have already been checked to be an image the platform accepts.
+   */
+  uploadLogo(businessId: string, file: LogoFile): Promise<string>;
   listAdminActions(limit: number): Promise<AdminAction[]>;
   /** Everything an operator needs to answer "what is going on with this account". */
   supportView(userId: string): Promise<SupportView | null>;

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Badge, Card, SectionTitle, StatStrip, btnGhost, btnPrimary } from "@/components/ui";
 import { Barcode } from "@/components/Barcode";
 import { BusinessLogo } from "@/components/BusinessLogo";
+import { PayoutPanel } from "@/components/PayoutPanel";
 import { BusinessProfileForm } from "@/components/BusinessProfileForm";
 import { CloseCampaignForm } from "@/components/CloseCampaignForm";
 import { CopyButton } from "@/components/CopyButton";
@@ -259,10 +260,12 @@ export async function BusinessDashboard({ user, store }: { user: User; store: Da
 }
 
 export async function InfluencerDashboard({ user, store }: { user: User; store: DataStore }) {
-  const [codes, redemptions, follows] = await Promise.all([
+  const [codes, redemptions, follows, payoutDetails, payoutRequests] = await Promise.all([
     store.listCodesByInfluencer(user.id),
     store.listRedemptionsByInfluencer(user.id),
     store.listFollowsByInfluencer(user.id),
+    store.getPayoutDetails(user.id),
+    store.listPayoutRequests(user.id),
   ]);
   const now = new Date();
   const stats = influencerStats(redemptions, now);
@@ -391,6 +394,44 @@ export async function InfluencerDashboard({ user, store }: { user: User; store: 
           האחוזים שלו.
         </p>
       ) : null}
+
+      <SectionTitle>הכסף שלי</SectionTitle>
+      <Card>
+        <div className="flex flex-wrap gap-4">
+          <p className="min-w-40 flex-1">
+            <span className="block text-xs font-medium text-mut">ממתין לשחרור</span>
+            <span className="mt-0.5 block font-sans text-3xl font-semibold leading-none">
+              {formatILS(wallet.pending)}
+            </span>
+            <span className="mt-1 block text-xs leading-relaxed text-mut">
+              עמלות ממכירות שנרשמו, בתוך חלון הביטול של {COMMISSION_HOLD_DAYS} ימים.
+              {wallet.nextReleaseAt ? ` הקרובה משתחררת ב-${formatDate(wallet.nextReleaseAt)}.` : ""}
+            </span>
+          </p>
+          <p className="min-w-40 flex-1">
+            <span className="block text-xs font-medium text-mut">זמין למשיכה</span>
+            <span className="mt-0.5 block font-sans text-3xl font-semibold leading-none text-deal-deep">
+              {formatILS(wallet.available)}
+            </span>
+            <span className="mt-1 block text-xs leading-relaxed text-mut">
+              עבר את חלון הביטול. הכסף הזה שלך סופית.
+            </span>
+          </p>
+        </div>
+        <div className="mt-4 border-t border-ink/10 pt-4">
+          <PayoutPanel
+            available={wallet.available}
+            pending={wallet.pending}
+            minPayout={wallet.minPayout}
+            canWithdraw={wallet.canWithdraw}
+            details={payoutDetails}
+            requests={payoutRequests}
+          />
+        </div>
+        <p className="mt-3 text-xs text-mut">
+          לא ברור? <Link href="/how-it-works" className="font-semibold text-deal-deep underline underline-offset-2">איך זה עובד</Link>
+        </p>
+      </Card>
 
       <SectionTitle>הקודים שלי</SectionTitle>
       <div className="grid gap-3 sm:grid-cols-2">
