@@ -1,4 +1,4 @@
-import { commissionState, monthKey, MIN_PAYOUT_ILS } from "./logic";
+import { commissionState, monthKey, RECOMMENDED_PAYOUT_ILS } from "./logic";
 import type { Redemption } from "./types";
 
 export interface BusinessStats {
@@ -29,8 +29,11 @@ export interface WalletStats {
   cancelled: number;
   /** When the earliest pending commission becomes payable */
   nextReleaseAt?: string;
+  /** True whenever there is any released money at all */
   canWithdraw: boolean;
-  minPayout: number;
+  /** Withdrawable, but small enough that transfer fees will be felt */
+  isSmallPayout: boolean;
+  recommendedPayout: number;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -73,8 +76,9 @@ export function walletStats(redemptions: Redemption[], now: Date = new Date()): 
     paid: round2(paid),
     cancelled: round2(cancelled),
     nextReleaseAt,
-    canWithdraw: round2(available) >= MIN_PAYOUT_ILS,
-    minPayout: MIN_PAYOUT_ILS,
+    canWithdraw: round2(available) > 0,
+    isSmallPayout: round2(available) > 0 && round2(available) < RECOMMENDED_PAYOUT_ILS,
+    recommendedPayout: RECOMMENDED_PAYOUT_ILS,
   };
 }
 

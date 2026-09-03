@@ -337,9 +337,7 @@ export async function InfluencerDashboard({ user, store }: { user: User; store: 
               label: "זמין למשיכה",
               value: formatILS(wallet.available),
               accent: wallet.available > 0,
-              sub: wallet.canWithdraw
-                ? "אפשר לבקש תשלום"
-                : `מינימום למשיכה: ${formatILS(wallet.minPayout)}`,
+              sub: wallet.canWithdraw ? "אפשר לבקש תשלום, בכל סכום" : "אין עדיין עמלה משוחררת",
             },
             {
               label: "המדרגה שלי",
@@ -422,7 +420,8 @@ export async function InfluencerDashboard({ user, store }: { user: User; store: 
           <PayoutPanel
             available={wallet.available}
             pending={wallet.pending}
-            minPayout={wallet.minPayout}
+            isSmallPayout={wallet.isSmallPayout}
+            recommendedPayout={wallet.recommendedPayout}
             canWithdraw={wallet.canWithdraw}
             details={payoutDetails}
             requests={payoutRequests}

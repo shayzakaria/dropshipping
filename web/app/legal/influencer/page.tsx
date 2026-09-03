@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { COMMISSION_HOLD_DAYS, MIN_PAYOUT_ILS } from "@/lib/domain/logic";
+import { COMMISSION_HOLD_DAYS } from "@/lib/domain/logic";
 import { DraftNotice } from "../DraftNotice";
 
 export const metadata: Metadata = {
@@ -60,7 +60,7 @@ export default function InfluencerAgreement() {
           עמידה ביעדי מכירות חודשיים מעלה מדרגה ומזכה בבונוס. הבונוס ממומן מחלקה של
           הפלטפורמה ואינו מגדיל את עלות הקמפיין לעסק.
         </li>
-        <li>העמלה מוחזקת {COMMISSION_HOLD_DAYS} ימים ממועד המכירה ומשולמת לאחר מכן, בכפוף לסף משיכה של {MIN_PAYOUT_ILS} ₪.</li>
+        <li>העמלה מוחזקת {COMMISSION_HOLD_DAYS} ימים ממועד המכירה, ולאחר מכן ניתנת למשיכה בכל סכום. אין סף מינימום.</li>
         <li>הוחזרה או בוטלה ההזמנה — העמלה מתבטלת. תראו את המועד והסיבה בלוח הבקרה שלכם.</li>
       </ul>
 

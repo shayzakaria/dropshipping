@@ -74,6 +74,8 @@ export default function AccessibilityStatement() {
           <dd dir="ltr">
             <a href="mailto:1234shay1234@gmail.com">1234shay1234@gmail.com</a>
           </dd>
+          <dt>כתובת</dt>
+          <dd>קרניצי 93, רמת גן</dd>
           <dt>זמן מענה</dt>
           <dd>עד 7 ימי עבודה</dd>
         </dl>

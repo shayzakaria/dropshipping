@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Card, SectionTitle } from "@/components/ui";
-import { COMMISSION_HOLD_DAYS, MIN_PAYOUT_ILS, PLATFORM_PCT } from "@/lib/domain/logic";
+import { COMMISSION_HOLD_DAYS, PLATFORM_PCT, RECOMMENDED_PAYOUT_ILS } from "@/lib/domain/logic";
 import { formatILS } from "@/lib/format";
 
 export const metadata: Metadata = {
@@ -160,8 +160,8 @@ export default function HowItWorksPage() {
               d: "העמלה עוברת ל״זמין למשיכה״. מכאן היא שלך סופית; החזרה מאוחרת יותר כבר לא נוגעת בה.",
             },
             {
-              t: `מעל ${formatILS(MIN_PAYOUT_ILS)} — אפשר למשוך`,
-              d: `סף המשיכה הוא ${formatILS(MIN_PAYOUT_ILS)}, כדי לא לבזבז עמלות העברה על סכומים קטנים. מתחת לזה הכסף מחכה וממשיך להצטבר.`,
+              t: "מכאן אפשר למשוך — בכל סכום",
+              d: `אין סף מינימום ואין כסף כלוא: מה שהשתחרר הוא שלך, וניתן לבקש אותו גם אם מדובר בעשרה שקלים. ההמלצה שלנו היא לחכות לסביבות ${formatILS(RECOMMENDED_PAYOUT_ILS)}, כי עמלת ההעברה של הבנק זהה בסכום קטן ובגדול — אבל זו המלצה, לא כלל.`,
             },
           ].map((s, i) => (
             <li key={s.t} className="flex gap-3">
@@ -186,7 +186,7 @@ export default function HowItWorksPage() {
               ["להירשם", "שם ואימייל. זהו."],
               ["להצטרף לקמפיין", "ולקבל קוד אישי."],
               ["לשתף", "עם גילוי ״פרסומת״ — אנחנו כותבים אותו בשבילך בכל הודעת שיתוף."],
-              ["למשוך כסף", `רק כשיש לך מעל ${formatILS(MIN_PAYOUT_ILS)} זמינים תתבקש למלא פרטי העברה. לא לפני.`],
+              ["למשוך כסף", "פרטי ההעברה נדרשים רק כשיש עמלה משוחררת. אין סכום מינימום."],
             ].map(([t, d]) => (
               <li key={t}>
                 <span className="font-bold">{t}</span>

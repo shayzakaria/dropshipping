@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { COMMISSION_HOLD_DAYS, MIN_PAYOUT_ILS } from "@/lib/domain/logic";
+import { COMMISSION_HOLD_DAYS } from "@/lib/domain/logic";
 import { DraftNotice } from "../DraftNotice";
 
 export const metadata: Metadata = {
@@ -65,7 +65,7 @@ export default function Terms() {
       <h2>6. תשלומים</h2>
       <p>
         דמי הפלטפורמה נגבים מהעסק על בסיס המכירות שנרשמו. עמלות משולמות למשפיענים בכפוף
-        לחלון ההמתנה ולסף משיכה מינימלי של {MIN_PAYOUT_ILS} ₪. הפלטפורמה רשאית לעכב תשלום
+        לחלון ההמתנה. אין סף משיכה מינימלי. הפלטפורמה רשאית לעכב תשלום
         בגין חשד סביר להונאה, עד לבירור.
       </p>
 

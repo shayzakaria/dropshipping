@@ -7,6 +7,7 @@ import { clearSession, getCurrentUser, setSession } from "@/lib/auth";
 import {
   DomainError,
   PLATFORM_PCT,
+  commissionState,
   parseCancellationReason,
   validateCampaignSplit,
 } from "@/lib/domain/logic";
@@ -432,8 +433,40 @@ export async function settlePayout(requestId: string, formData: FormData): Promi
     detail: { note: note ?? null },
   });
   await store.setPayoutRequestStatus(requestId, status, note);
+
+  // Paying out has to consume the commissions it covered. Without this the
+  // same released money stays "available" after the transfer and can be
+  // requested again — the influencer is paid twice and nothing in the data
+  // says otherwise. Oldest first, because those are the ones the frozen
+  // amount was computed from; anything released since the request stays
+  // available, which is correct.
+  if (status === "paid") {
+    const req = (await store.listAllPayoutRequests()).find((r) => r.id === requestId);
+    if (req) await consumeCommissions(store, req.influencerId, req.amount);
+  }
+
   revalidatePath("/admin/payouts");
   revalidatePath("/dashboard");
+}
+
+/** Flips released commissions to `paid`, oldest first, until `amount` is covered. */
+async function consumeCommissions(
+  store: DataStore,
+  influencerId: string,
+  amount: number,
+): Promise<void> {
+  const released = (await store.listRedemptionsByInfluencer(influencerId))
+    .filter((r) => commissionState(r) === "available")
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+  let left = amount;
+  for (const r of released) {
+    // Half a commission cannot be paid, so stop before overshooting rather
+    // than marking a sale paid that the transfer did not actually cover.
+    if (r.influencerCommission > left + 0.001) break;
+    await store.setRedemptionStatus(r.id, "paid");
+    left -= r.influencerCommission;
+  }
 }
 
 export async function createCampaign(_prev: FormState, formData: FormData): Promise<FormState> {

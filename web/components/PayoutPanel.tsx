@@ -28,14 +28,16 @@ const TAX = [
 export function PayoutPanel({
   available,
   pending,
-  minPayout,
+  isSmallPayout,
+  recommendedPayout,
   canWithdraw,
   details,
   requests,
 }: {
   available: number;
   pending: number;
-  minPayout: number;
+  isSmallPayout: boolean;
+  recommendedPayout: number;
   canWithdraw: boolean;
   details: PayoutDetails | null;
   requests: PayoutRequest[];
@@ -47,8 +49,8 @@ export function PayoutPanel({
   if (!canWithdraw && !details && requests.length === 0) {
     return (
       <p className="text-sm font-light leading-relaxed text-mut">
-        כשיהיו לך {formatILS(minPayout)} זמינים למשיכה, כאן יופיע טופס קצר עם פרטי
-        ההעברה. עד אז אין מה למלא — הכסף פשוט מצטבר.
+        ברגע שתשתחרר העמלה הראשונה שלך יופיע כאן טופס קצר עם פרטי ההעברה. עד אז
+        אין מה למלא — הכסף פשוט מצטבר.
         {pending > 0 ? ` כרגע ${formatILS(pending)} בהמתנה.` : ""}
       </p>
     );
@@ -133,14 +135,19 @@ export function PayoutPanel({
         </form>
       ) : null}
 
-      {details && !openRequest ? (
+      {details && !openRequest && canWithdraw ? (
         <form action={requestPayout}>
-          <button disabled={!canWithdraw} className={`${btnPrimary} disabled:opacity-40`}>
-            בקשת משיכה · {formatILS(available)}
-          </button>
-          {!canWithdraw ? (
-            <p className="mt-1.5 text-xs text-mut">
-              סף המשיכה הוא {formatILS(minPayout)}. יש לך {formatILS(available)} זמינים.
+          <button className={btnPrimary}>בקשת משיכה · {formatILS(available)}</button>
+          {/*
+            A small balance is a recommendation, never a lock: the money has
+            cleared its hold and it is theirs. We say what it costs them and
+            let them decide.
+          */}
+          {isSmallPayout ? (
+            <p className="mt-1.5 text-xs leading-relaxed text-mut">
+              אפשר למשוך כל סכום, גם עכשיו. ההמלצה שלנו היא לחכות ל־
+              {formatILS(recommendedPayout)} בערך — עמלת ההעברה של הבנק נגסת אותו דבר
+              בסכום קטן ובסכום גדול, אז בסכומים קטנים היא מרגישה הרבה יותר. ההחלטה שלך.
             </p>
           ) : null}
         </form>

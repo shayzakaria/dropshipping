@@ -163,8 +163,16 @@ export const CAMPAIGN_STATUS_LABELS: Record<CampaignStatus, string> = {
 
 export const COMMISSION_HOLD_DAYS = 14;
 
-/** Nothing is paid out below this amount, to keep transfer costs sane */
-export const MIN_PAYOUT_ILS = 100;
+/**
+ * The amount below which we suggest waiting before withdrawing.
+ *
+ * It is advice, not a gate. Money that has cleared its hold belongs to the
+ * influencer, and a platform that locks small balances until they grow is
+ * holding other people's money for its own convenience. The only real cost of
+ * a small withdrawal is the transfer fee eating a bigger share of it, which is
+ * a thing to say out loud and then let them decide.
+ */
+export const RECOMMENDED_PAYOUT_ILS = 100;
 
 /**
  * Our share of every sale. Deliberately not read from the campaign form:

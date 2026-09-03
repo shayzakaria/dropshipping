@@ -97,4 +97,36 @@ export async function seed(store: MemoryStore): Promise<void> {
       customerRef: `friend${i + 1}@example.com`,
     });
   }
+
+  spreadOverTime(store, noa.id, [34, 31, 27, 24, 21, 19, 16, 15, 9, 6, 3, 1]);
+  spreadOverTime(store, omer.id, [18, 5, 2]);
+}
+
+/**
+ * Ages the seeded sales so the demo shows the whole life of a commission.
+ *
+ * Without this every sale is dated today, every shekel sits in "ממתין
+ * לשחרור", and the second half of the product — released money, the payout
+ * threshold, the withdrawal form — is unreachable in the demo. Noa ends up
+ * with enough released to withdraw; Omer with released money still under the
+ * threshold, which is the other state worth being able to look at.
+ *
+ * holdUntil is moved with createdAt rather than recomputed, because it is
+ * the stored promise made at the time of the sale, not a function of today.
+ */
+function spreadOverTime(store: MemoryStore, influencerId: string, agesInDays: number[]): void {
+  const mine = [...store.redemptions.values()]
+    .filter((r) => r.influencerId === influencerId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+  mine.forEach((r, i) => {
+    const age = agesInDays[i];
+    if (age === undefined) return;
+    const shift = age * 24 * 60 * 60 * 1000;
+    store.redemptions.set(r.id, {
+      ...r,
+      createdAt: new Date(Date.parse(r.createdAt) - shift).toISOString(),
+      holdUntil: new Date(Date.parse(r.holdUntil) - shift).toISOString(),
+    });
+  });
 }

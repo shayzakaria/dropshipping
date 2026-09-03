@@ -3,7 +3,7 @@ import {
   COMMISSION_HOLD_DAYS,
   commissionState,
   holdUntilFor,
-  MIN_PAYOUT_ILS,
+  RECOMMENDED_PAYOUT_ILS,
 } from "@/lib/domain/logic";
 import { businessStats, influencerStats, walletStats } from "@/lib/domain/stats";
 import type { Redemption } from "@/lib/domain/types";
@@ -82,11 +82,22 @@ describe("walletStats", () => {
     expect(w.nextReleaseAt).toBe("2026-09-11T00:00:00Z");
   });
 
-  it("gates withdrawal on the minimum payout", () => {
-    const below = walletStats([sale({ influencerCommission: MIN_PAYOUT_ILS - 1 })], RELEASED);
-    expect(below.canWithdraw).toBe(false);
-    const at = walletStats([sale({ influencerCommission: MIN_PAYOUT_ILS })], RELEASED);
-    expect(at.canWithdraw).toBe(true);
+  it("never locks released money behind a minimum", () => {
+    const tiny = walletStats([sale({ influencerCommission: 3 })], RELEASED);
+    expect(tiny.canWithdraw).toBe(true);
+    expect(tiny.isSmallPayout).toBe(true);
+  });
+
+  it("stops calling a payout small once it passes the recommendation", () => {
+    const big = walletStats([sale({ influencerCommission: RECOMMENDED_PAYOUT_ILS })], RELEASED);
+    expect(big.canWithdraw).toBe(true);
+    expect(big.isSmallPayout).toBe(false);
+  });
+
+  it("offers no withdrawal while everything is still on hold", () => {
+    const held = walletStats([sale({ influencerCommission: 250 })], SOLD);
+    expect(held.canWithdraw).toBe(false);
+    expect(held.isSmallPayout).toBe(false);
   });
 
   it("is empty for an influencer with no sales", () => {
@@ -111,5 +122,24 @@ describe("a returned order", () => {
     expect(b.monthCount).toBe(1);
     expect(b.monthRevenue).toBe(300);
     expect(b.monthTotalCost).toBe(60);
+  });
+});
+
+describe("a settled payout consumes the commissions it covered", () => {
+  it("stops counting paid commissions as available", () => {
+    const rs = [
+      sale({ influencerCommission: 60, status: "paid" }),
+      sale({ influencerCommission: 40 }),
+    ];
+    const w = walletStats(rs, RELEASED);
+    // The paid one has left the balance; only the untouched 40 is withdrawable.
+    expect(w.paid).toBe(60);
+    expect(w.available).toBe(40);
+  });
+
+  it("leaves nothing withdrawable once every commission is paid", () => {
+    const w = walletStats([sale({ influencerCommission: 149.87, status: "paid" })], RELEASED);
+    expect(w.available).toBe(0);
+    expect(w.canWithdraw).toBe(false);
   });
 });
