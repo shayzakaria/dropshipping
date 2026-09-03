@@ -11,10 +11,27 @@ import { AccessibilityMenu } from "@/components/AccessibilityMenu";
 import { CookieNotice } from "@/components/CookieNotice";
 import { getReadyStore, isPersistent } from "@/lib/store";
 
+const TITLE = "BOOST — קוד קופון אחד, כולם מרוויחים";
+const DESCRIPTION =
+  "הפלטפורמה שמחברת עסקים חדשים למשפיענים: העסק משלם רק על מכירות, המשפיען מרוויח עמלה, הקונה מקבל הנחה.";
+
 export const metadata: Metadata = {
-  title: "BOOST — קוד קופון אחד, כולם מרוויחים",
-  description:
-    "הפלטפורמה שמחברת עסקים חדשים למשפיענים: העסק משלם רק על מכירות, המשפיען מרוויח עמלה, הקונה מקבל הנחה.",
+  title: TITLE,
+  description: DESCRIPTION,
+  /*
+   * Without these a shared link renders as a bare grey rectangle, and sharing
+   * links is the entire mechanism of the product. The image itself is
+   * generated in app/opengraph-image.tsx; Next wires it up by file name, and
+   * these tags carry the words around it.
+   */
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    type: "website",
+    locale: "he_IL",
+    siteName: "BOOST",
+  },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 export const dynamic = "force-dynamic";
