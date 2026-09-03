@@ -12,6 +12,9 @@ import type {
   PayoutDetails,
   PayoutRequest,
   PayoutStatus,
+  Notification,
+  NotificationKind,
+  NotificationStatus,
   Settlement,
   SettlementStatus,
   PoolStatus,
@@ -43,6 +46,7 @@ type ProfileRow = {
   is_admin: boolean | null;
   suspended_at: string | null;
   suspended_reason: string | null;
+  email_opt_out: boolean | null;
   created_at: string;
 };
 type BusinessRow = {
@@ -115,6 +119,7 @@ const toUser = (r: ProfileRow): User => ({
   isAdmin: r.is_admin ?? false,
   suspendedAt: r.suspended_at ?? undefined,
   suspendedReason: r.suspended_reason ?? undefined,
+  emailOptOut: r.email_opt_out ?? false,
   createdAt: r.created_at,
 });
 
@@ -148,6 +153,32 @@ const toCampaign = (r: CampaignRow): Campaign => ({
   codeSource: r.code_source ?? "generated",
   verifiedAt: r.verified_at ?? undefined,
   createdAt: r.created_at,
+});
+
+type NotificationRow = {
+  id: string;
+  recipient_id: string;
+  kind: NotificationKind;
+  dedupe_key: string;
+  subject: string;
+  body: string;
+  status: NotificationStatus;
+  error: string | null;
+  created_at: string;
+  sent_at: string | null;
+};
+
+const toNotification = (r: NotificationRow): Notification => ({
+  id: r.id,
+  recipientId: r.recipient_id,
+  kind: r.kind,
+  dedupeKey: r.dedupe_key,
+  subject: r.subject,
+  body: r.body,
+  status: r.status,
+  error: r.error ?? undefined,
+  createdAt: r.created_at,
+  sentAt: r.sent_at ?? undefined,
 });
 
 type SettlementRow = {
@@ -455,6 +486,77 @@ export class SupabaseStore implements DataStore {
       this.db.from("businesses").select().order("created_at", { ascending: false }),
     );
     return rows.map(toBusiness);
+  }
+
+  async claimNotification(input: {
+    recipientId: string;
+    kind: NotificationKind;
+    dedupeKey: string;
+    subject: string;
+    body: string;
+  }): Promise<Notification | null> {
+    // Someone who turned these off is not claimed for, so no row is left
+    // behind pretending an email is on its way.
+    const recipient = await this.getUser(input.recipientId);
+    if (!recipient || recipient.emailOptOut) return null;
+
+    const { data, error } = await this.db
+      .from("notifications")
+      .insert({
+        recipient_id: input.recipientId,
+        kind: input.kind,
+        dedupe_key: input.dedupeKey,
+        subject: input.subject,
+        body: input.body,
+      })
+      .select()
+      .single<NotificationRow>();
+
+    // 23505 is the unique index on dedupe_key doing its job: somebody else
+    // already claimed this exact event, so this caller sends nothing.
+    if (error?.code === "23505") return null;
+    if (error) throw new Error(error.message);
+    return toNotification(data!);
+  }
+
+  async markNotificationSent(id: string, error?: string): Promise<void> {
+    const { error: e } = await this.db
+      .from("notifications")
+      .update({
+        status: error ? "failed" : "sent",
+        error: error ?? null,
+        sent_at: error ? null : new Date().toISOString(),
+      })
+      .eq("id", id);
+    if (e) throw new Error(e.message);
+  }
+
+  async listNotifications(recipientId: string, limit = 20): Promise<Notification[]> {
+    const rows = await this.many<NotificationRow>(
+      this.db
+        .from("notifications")
+        .select()
+        .eq("recipient_id", recipientId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+    );
+    return rows.map(toNotification);
+  }
+
+  async findNewlyReleased(): Promise<{ influencerId: string; amount: number; count: number; upTo: string }[]> {
+    const { data, error } = await this.db.rpc("find_newly_released");
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as { influencer_id: string; amount: number | string; sales: number }[]).map((r) => ({
+      influencerId: r.influencer_id,
+      amount: num(r.amount),
+      count: r.sales,
+      upTo: new Date().toISOString(),
+    }));
+  }
+
+  async setEmailOptOut(userId: string, optOut: boolean): Promise<void> {
+    const { error } = await this.db.from("profiles").update({ email_opt_out: optOut }).eq("id", userId);
+    if (error) throw new Error(error.message);
   }
 
   async setUserSuspended(userId: string, reason: string | null): Promise<void> {

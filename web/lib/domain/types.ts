@@ -26,6 +26,8 @@ export interface User {
   isAdmin?: boolean;
   /** Locked by an operator. A suspended account cannot sign in or earn. */
   suspendedAt?: string;
+  /** Set by the recipient; stops every notification email. */
+  emailOptOut?: boolean;
   suspendedReason?: string;
   createdAt: string;
 }
@@ -227,6 +229,34 @@ export interface PayoutDetails {
 export type PayoutStatus = "requested" | "paid" | "rejected";
 
 export type SettlementStatus = "issued" | "paid" | "cancelled";
+
+export type NotificationKind =
+  | "sale"
+  | "commission_released"
+  | "commission_cancelled"
+  | "payout_paid"
+  | "influencer_joined"
+  | "pool_low"
+  | "statement_issued";
+
+export type NotificationStatus = "pending" | "sent" | "failed";
+
+/**
+ * One thing somebody was told. The dedupe key names the event rather than the
+ * moment, which is what makes a retry safe.
+ */
+export interface Notification {
+  id: string;
+  recipientId: string;
+  kind: NotificationKind;
+  dedupeKey: string;
+  subject: string;
+  body: string;
+  status: NotificationStatus;
+  error?: string;
+  createdAt: string;
+  sentAt?: string;
+}
 
 /**
  * One month's bill to one business: what it owes its influencers, plus our

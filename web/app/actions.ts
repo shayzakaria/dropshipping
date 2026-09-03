@@ -15,6 +15,13 @@ import {
 import { cancelRedemption, redeemCode } from "@/lib/domain/service";
 import { walletStats } from "@/lib/domain/stats";
 import { parseCodeListClient } from "@/lib/domain/codes";
+import {
+  notifyCommissionCancelled,
+  notifyInfluencerJoined,
+  notifyPayoutPaid,
+  notifySale,
+  notifyStatementIssued,
+} from "@/lib/email/events";
 import { getReadyStore, isDemoMode } from "@/lib/store";
 import { authErrorMessage, getAuthClient, isAuthConfigured } from "@/lib/supabase-auth";
 import type { CampaignScope, CampaignStatus, CodeSource, Role } from "@/lib/domain/types";
@@ -444,7 +451,10 @@ export async function settlePayout(requestId: string, formData: FormData): Promi
   // available, which is correct.
   if (status === "paid") {
     const req = (await store.listAllPayoutRequests()).find((r) => r.id === requestId);
-    if (req) await consumeCommissions(store, req.influencerId, req.amount);
+    if (req) {
+      await consumeCommissions(store, req.influencerId, req.amount);
+      await notifyPayoutPaid(store, { id: req.id, influencerId: req.influencerId, amount: req.amount, note });
+    }
   }
 
   revalidatePath("/admin/payouts");
@@ -496,6 +506,7 @@ export async function issueSettlements(_prev: FormState, formData: FormData): Pr
   });
 
   const issued = await store.issueSettlements({ start, end });
+  for (const s of issued) await notifyStatementIssued(store, s);
   revalidatePath("/admin/settlements");
   revalidatePath("/dashboard");
   const total = issued.reduce((sum, s) => sum + s.total, 0);
@@ -534,6 +545,22 @@ export async function settleStatement(settlementId: string, formData: FormData):
   await store.setSettlementStatus(settlementId, status, note);
   revalidatePath("/admin/settlements");
   revalidatePath("/dashboard");
+}
+
+/** Turns notification emails on or off for the signed-in user. */
+export async function setNotificationPreference(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const optOut = formData.get("optOut") === "true";
+  await getReadyStore().then((store) => store.setEmailOptOut(user.id, optOut));
+  revalidatePath("/settings/notifications");
+  return {
+    ok: true,
+    notice: optOut ? "הודעות המייל כבויות." : "הודעות המייל פעילות.",
+  };
 }
 
 export async function createCampaign(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -666,6 +693,12 @@ export async function joinCampaign(campaignId: string): Promise<void> {
 
   try {
     await store.createCode({ campaignId, influencerId: user.id, status: "active" });
+    await notifyInfluencerJoined(store, {
+      businessId: campaign.businessId,
+      influencerId: user.id,
+      campaignId,
+      campaignTitle: campaign.title,
+    });
   } catch (e) {
     // The pool ran dry between the page rendering and the click. There is
     // nothing to hand out, and inventing a code would hand over one that
@@ -855,7 +888,12 @@ export async function adminCancelRedemption(redemptionId: string, formData: Form
     detail: { reason, amount: redemption.influencerCommission, influencerId: redemption.influencerId },
   });
   try {
-    await cancelRedemption(store, { businessId: redemption.businessId, redemptionId, reason });
+    const cancelled = await cancelRedemption(store, {
+      businessId: redemption.businessId,
+      redemptionId,
+      reason,
+    });
+    await notifyCommissionCancelled(store, cancelled);
   } catch (e) {
     if (!(e instanceof DomainError)) throw e;
     refuse("adminCancelRedemption", { redemptionId, code: e.code });
@@ -895,7 +933,10 @@ export async function cancelSale(redemptionId: string, formData: FormData): Prom
   if (!business) return refuse("cancelSale", { userId: user.id, redemptionId });
   const reason = parseCancellationReason(formData.get("reason"));
   try {
-    await cancelRedemption(store, { businessId: business.id, redemptionId, reason });
+    const cancelled = await cancelRedemption(store, { businessId: business.id, redemptionId, reason });
+    // The influencer is losing money they were already told about, so they
+    // are told about this too, with the reason attached.
+    await notifyCommissionCancelled(store, cancelled);
   } catch (e) {
     // A sale that is missing, already paid, or not this business's stays as it is
     if (!(e instanceof DomainError)) throw e;
@@ -938,6 +979,7 @@ export async function reportManualSale(_prev: FormState, formData: FormData): Pr
       customerRef: customerRef || undefined,
       externalOrderId: externalOrderId || undefined,
     });
+    await notifySale(store, r);
     revalidatePath("/dashboard");
     return {
       ok: true,

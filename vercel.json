@@ -4,5 +4,13 @@
   "installCommand": "cd web && npm install",
   "buildCommand": "cd web && npm run build",
   "outputDirectory": "web/.next",
-  "regions": ["dub1"]
+  "regions": [
+    "dub1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/releases",
+      "schedule": "0 7 * * *"
+    }
+  ]
 }

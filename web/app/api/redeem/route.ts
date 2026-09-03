@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { notifySale } from "@/lib/email/events";
 import { DomainError } from "@/lib/domain/logic";
 import { redeemCode } from "@/lib/domain/service";
 import { getReadyStore } from "@/lib/store";
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
       externalOrderId,
       source: "api",
     });
+    await notifySale(store, r);
     return NextResponse.json({
       ok: true,
       redemption: {

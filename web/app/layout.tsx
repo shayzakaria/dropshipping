@@ -150,6 +150,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                       ניהול מערכת
                     </Link>
                   ) : null}
+                  <Link href="/settings/notifications" className={navLink}>
+                    הודעות
+                  </Link>
                   <span className="hidden px-2 text-xs font-medium text-mut sm:inline">
                     {user.name} · {user.isAdmin ? "מנהל מערכת" : user.role === "business" ? "עסק" : "משפיען"}
                   </span>

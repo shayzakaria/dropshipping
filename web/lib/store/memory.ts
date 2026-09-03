@@ -12,6 +12,8 @@ import type {
   PayoutDetails,
   PayoutRequest,
   PayoutStatus,
+  Notification,
+  NotificationKind,
   Settlement,
   SettlementStatus,
   PoolStatus,
@@ -247,6 +249,85 @@ export class MemoryStore implements DataStore {
     return `data:${file.mime};base64,${base64}`;
   }
 
+
+  private readonly notifications = new Map<string, Notification>();
+
+  async claimNotification(input: {
+    recipientId: string;
+    kind: NotificationKind;
+    dedupeKey: string;
+    subject: string;
+    body: string;
+  }): Promise<Notification | null> {
+    // A recipient who turned these off is not claimed for, so no row is left
+    // behind pretending an email is on its way.
+    const user = this.users.get(input.recipientId);
+    if (!user || user.emailOptOut) return null;
+    for (const n of this.notifications.values()) {
+      if (n.dedupeKey === input.dedupeKey) return null;
+    }
+    const row: Notification = {
+      ...input,
+      id: randomUUID(),
+      status: "pending",
+      createdAt: this.now(),
+    };
+    this.notifications.set(row.id, row);
+    return row;
+  }
+
+  async markNotificationSent(id: string, error?: string): Promise<void> {
+    const n = this.notifications.get(id);
+    if (!n) return;
+    this.notifications.set(id, {
+      ...n,
+      status: error ? "failed" : "sent",
+      error,
+      sentAt: error ? n.sentAt : this.now(),
+    });
+  }
+
+  async listNotifications(recipientId: string, limit = 20): Promise<Notification[]> {
+    return [...this.notifications.values()]
+      .filter((n) => n.recipientId === recipientId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit);
+  }
+
+  /**
+   * Commissions that left their hold window since each influencer was last
+   * told about a release.
+   *
+   * The watermark is the notifications table itself — the timestamp of the
+   * previous `commission_released` row. That keeps a standing balance from
+   * being announced every single day, without a second table to keep in step
+   * with reality.
+   */
+  async findNewlyReleased(): Promise<{ influencerId: string; amount: number; count: number; upTo: string }[]> {
+    const nowIso = this.now();
+    const lastTold = new Map<string, string>();
+    for (const n of this.notifications.values()) {
+      if (n.kind !== "commission_released") continue;
+      const prev = lastTold.get(n.recipientId);
+      if (!prev || n.createdAt > prev) lastTold.set(n.recipientId, n.createdAt);
+    }
+
+    const byInfluencer = new Map<string, { amount: number; count: number }>();
+    for (const r of this.redemptions.values()) {
+      if (r.status !== "held" || r.holdUntil > nowIso) continue;
+      if (r.holdUntil <= (lastTold.get(r.influencerId) ?? "")) continue;
+      const cur = byInfluencer.get(r.influencerId) ?? { amount: 0, count: 0 };
+      cur.amount = MemoryStore.round2(cur.amount + r.influencerCommission);
+      cur.count++;
+      byInfluencer.set(r.influencerId, cur);
+    }
+    return [...byInfluencer.entries()].map(([influencerId, v]) => ({ influencerId, ...v, upTo: nowIso }));
+  }
+
+  async setEmailOptOut(userId: string, optOut: boolean): Promise<void> {
+    const u = this.users.get(userId);
+    if (u) this.users.set(userId, { ...u, emailOptOut: optOut });
+  }
 
   async setUserSuspended(userId: string, reason: string | null): Promise<void> {
     const u = this.users.get(userId);

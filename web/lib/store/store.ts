@@ -10,6 +10,8 @@ import type {
   PayoutDetails,
   PayoutRequest,
   PayoutStatus,
+  Notification,
+  NotificationKind,
   Settlement,
   SettlementStatus,
   CodeSource,
@@ -86,6 +88,29 @@ export interface DataStore {
    * not been billed for yet.
    */
   unbilledTotals(businessId: string): Promise<{ commissions: number; platformFees: number; count: number }>;
+
+  // ---- Notifications
+  /**
+   * Claims the right to send one notification, or returns null because
+   * somebody already has.
+   *
+   * The dedupe key is unique in the database, so the insert either wins or
+   * conflicts — which is the only way to be sure a retried request, a double
+   * cron run, or two instances racing do not mail the same person twice. A
+   * check-then-insert would leave a window exactly wide enough to do it.
+   */
+  claimNotification(input: {
+    recipientId: string;
+    kind: NotificationKind;
+    dedupeKey: string;
+    subject: string;
+    body: string;
+  }): Promise<Notification | null>;
+  markNotificationSent(id: string, error?: string): Promise<void>;
+  listNotifications(recipientId: string, limit?: number): Promise<Notification[]>;
+  /** Influencers with commissions that came out of hold and were never announced. */
+  findNewlyReleased(): Promise<{ influencerId: string; amount: number; count: number; upTo: string }[]>;
+  setEmailOptOut(userId: string, optOut: boolean): Promise<void>;
 
   // ---- Files
   /**
